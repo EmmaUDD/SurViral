@@ -13,6 +13,8 @@ async function ready(signal?: AbortSignal): Promise<{ data: GrdDataset; options:
 }
 
 export const realService: DashboardService = {
+  // La vista de vacunación muestra un aviso en modo real: no se mezclan cifras ficticias con GRD.
+  async getVaccination() { throw new Error('Vacunación real no integrada: faltan validar unidad, campaña, población y base territorial.'); },
   async getFilterOptions(signal) { return structuredClone((await ready(signal)).options); },
   async getOverview(filters, signal) { const { data, options } = await ready(signal); return summarizeReal(filters, data, options); },
   async getLogisticPreview(filters, horizon, signal) {

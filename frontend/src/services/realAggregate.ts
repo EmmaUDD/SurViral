@@ -3,9 +3,6 @@ import { ageBands } from '../utils/ages.ts';
 import { regions, validateFiltersAgainst } from './catalog.ts';
 import { NO_STAY, SEX_IDS, UNKNOWN_U8, type GrdDataset, type GrdMeta } from './realData.ts';
 
-/** Diagnósticos individuales que se muestran en el ranking; el resto se agrupa en «Otros». */
-export const TOP_DIAGNOSES = 10;
-export const OTHER_DIAGNOSES_ID = 'other-codes';
 export const UNKNOWN_REGION_ID = 'unknown';
 
 const DAY_MS = 86_400_000;
@@ -49,6 +46,7 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
   const firstMonth = monthIndex(baseYear, filters.startDate), months = monthIndex(baseYear, filters.endDate) - firstMonth + 1;
   const regionCode = filters.region === 'all' ? -1 : Number(filters.region);
   const communeCode = filters.commune === 'all' ? -1 : Number(filters.commune);
+  const communeSet = filters.communes?.length ? new Set(filters.communes.map(Number)) : null;
   const ageCode = filters.age === 'all' ? -1 : filters.age === 'unknown' ? UNKNOWN_U8 : ageBands.findIndex(b => b.id === filters.age);
   const sexCode = filters.sex === 'all' ? -1 : SEX_IDS.indexOf(filters.sex);
   const diagCode = filters.diagnosis === 'all' ? -1 : meta.diagnoses.findIndex(d => d.id === filters.diagnosis);
@@ -56,7 +54,7 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
 
   const monthCounts = new Uint32Array(months), regionMonth = new Uint32Array(17 * months), regionCounts = new Uint32Array(17);
   const diagCounts = new Uint32Array(meta.diagnoses.length), ageCounts = new Uint32Array(ageBands.length + 1), sexCounts = new Uint32Array(3);
-  const stays = new Uint32Array(meta.maxStay + 1);
+  const stays = new Uint32Array(meta.maxStay + 1), communeCounts = new Uint32Array(65536);
   let universe = 0, selected = 0, missingStay = 0;
   const { day, stay, commune, region, age, sex, diag } = data;
   for (let i = 0; i < meta.rows; i++) {
@@ -64,6 +62,7 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
     if (d < startDay || d > endDay) continue;
     if (regionCode >= 0 && region[i] !== regionCode) continue;
     if (communeCode >= 0 && commune[i] !== communeCode) continue;
+    if (communeSet && !communeSet.has(commune[i])) continue;
     if (ageCode >= 0 && age[i] !== ageCode) continue;
     if (sexCode >= 0 && sex[i] !== sexCode) continue;
     universe++;
@@ -71,7 +70,7 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
     if (diagCode >= 0 && diag[i] !== diagCode) continue;
     selected++;
     const m = monthOf[d] - firstMonth, r = region[i];
-    monthCounts[m]++; regionMonth[r * months + m]++; regionCounts[r]++;
+    monthCounts[m]++; regionMonth[r * months + m]++; regionCounts[r]++; communeCounts[commune[i]]++;
     diagCounts[diag[i]]++; sexCounts[sex[i]]++;
     ageCounts[age[i] === UNKNOWN_U8 ? ageBands.length : age[i]]++;
     if (stay[i] === NO_STAY) missingStay++; else stays[stay[i]]++;
@@ -86,22 +85,22 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
     return { period, value: monthCounts[m], status: 'available', partial: filters.startDate > `${period}-01` || filters.endDate < end };
   });
 
-  let diagnoses: CategoryValue[];
-  if (diagCode >= 0) diagnoses = [category(meta.diagnoses[diagCode].id, meta.diagnoses[diagCode].label, selected)];
-  else {
-    const ranked = meta.diagnoses.map((o, i) => ({ ...o, value: diagCounts[i] })).filter(o => o.value > 0).sort((a, b) => b.value - a.value || a.id.localeCompare(b.id));
-    const rest = ranked.slice(TOP_DIAGNOSES);
-    diagnoses = ranked.slice(0, TOP_DIAGNOSES).map(o => category(o.id, o.label, o.value));
-    if (rest.length) diagnoses.push(category(OTHER_DIAGNOSES_ID, `Otros diagnósticos J (${rest.length} códigos)`, rest.reduce((sum, o) => sum + o.value, 0)));
-  }
+  // Todos los diagnósticos con egresos, de mayor a menor; DiagnosisBars agrupa los menos frecuentes al mostrar.
+  const diagnoses = diagCode >= 0
+    ? [category(meta.diagnoses[diagCode].id, meta.diagnoses[diagCode].label, selected)]
+    : meta.diagnoses.map((o, i) => category(o.id, o.label, diagCounts[i])).filter(o => o.value > 0).sort((a, b) => b.value - a.value || a.id.localeCompare(b.id));
 
-  const shownRegions = regions.filter(r => filters.region === 'all' || r.id === filters.region);
+  const selectedRegions = communeSet ? new Set(options.communes.filter(c => communeSet.has(Number(c.id))).map(c => c.region)) : null;
+  const shownRegions = regions.filter(r => (filters.region === 'all' || r.id === filters.region) && (!selectedRegions || selectedRegions.has(r.id)));
   const territories = shownRegions.map(r => category(r.id, r.label, regionCounts[Number(r.id)]));
-  if (filters.region === 'all' && regionCounts[0] > 0) territories.push(category(UNKNOWN_REGION_ID, 'Sin región de residencia registrada', regionCounts[0]));
+  if (filters.region === 'all' && !communeSet && regionCounts[0] > 0) territories.push(category(UNKNOWN_REGION_ID, 'Sin región de residencia registrada', regionCounts[0]));
+  const communes = options.communes
+    .filter(c => (filters.region === 'all' || c.region === filters.region) && (filters.commune === 'all' || c.id === filters.commune) && (!communeSet || communeSet.has(Number(c.id))))
+    .map(c => category(c.id, c.label, communeCounts[Number(c.id)]));
 
   const validStays = selected - missingStay;
   const median = medianFromHistogram(stays, validStays);
-  const unknownRegion = filters.region === 'all' ? regionCounts[0] : 0;
+  const unknownRegion = filters.region === 'all' && !communeSet ? regionCounts[0] : 0;
   return {
     status: selected ? 'ready' : 'empty',
     indicators: {
@@ -113,6 +112,7 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
     regionalMonthly: shownRegions.map(r => ({ ...r, points: monthly.map((p, m) => ({ ...p, value: regionMonth[Number(r.id) * months + m] })) })),
     diagnoses,
     territories,
+    communes,
     demographics: {
       age: [...ageBands.map((b, i) => category(b.id, b.label, ageCounts[i])), category('unknown', 'Edad desconocida', ageCounts[ageBands.length])],
       sex: options.sexes.map((o, i) => category(o.id, o.label, sexCounts[i])),

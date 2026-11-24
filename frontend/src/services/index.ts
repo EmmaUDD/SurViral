@@ -7,6 +7,7 @@ import { SIMULATED } from './mode.ts';
 const service = (): Promise<DashboardService> => SIMULATED ? import('./mockService.ts').then(m => m.mockService) : Promise.resolve(realService);
 
 export const dashboardService: DashboardService = {
+  getVaccination: (query, signal) => service().then(s => s.getVaccination(query, signal)),
   getFilterOptions: signal => service().then(s => s.getFilterOptions(signal)),
   getOverview: (filters, signal) => service().then(s => s.getOverview(filters, signal)),
   getLogisticPreview: (filters, horizon, signal) => service().then(s => s.getLogisticPreview(filters, horizon, signal)),

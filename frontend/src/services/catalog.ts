@@ -21,6 +21,8 @@ export function validateFiltersAgainst(f: Filters, options: FilterOptions): void
   if (f.startDate > f.endDate) throw new Error('La fecha inicial no puede ser posterior a la fecha final.');
   if (f.startDate < options.minDate || f.endDate > options.maxDate) throw new Error(`La cobertura abarca del ${options.minDate.split('-').reverse().join('/')} al ${options.maxDate.split('-').reverse().join('/')}.`);
   if (f.region !== 'all' && !options.regions.some(o => o.id === f.region)) throw new Error('Territorio no disponible.');
+  if (f.communes?.some(id => !options.communes.some(c => c.id === id))) throw new Error('Código de comuna no disponible.');
+  if (new Set(f.communes).size !== (f.communes?.length ?? 0)) throw new Error('La selección de comunas contiene duplicados.');
   if (f.commune !== 'all') {
     const commune = options.communes.find(c => c.id === f.commune);
     if (!commune || commune.region !== f.region) throw new Error('La comuna no corresponde a la región seleccionada.');

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { decodeDataset, realFilterOptions, NO_STAY, UNKNOWN_U8, type GrdMeta } from '../src/services/realData.ts';
-import { summarizeReal, OTHER_DIAGNOSES_ID, TOP_DIAGNOSES, UNKNOWN_REGION_ID } from '../src/services/realAggregate.ts';
+import { summarizeReal, UNKNOWN_REGION_ID } from '../src/services/realAggregate.ts';
 import { logisticFromSeries } from '../src/utils/logistic.ts';
 import { ageBands } from '../src/utils/ages.ts';
 import { defaultFilters } from '../src/app/defaults.ts';
@@ -60,16 +60,33 @@ test('Datos reales: conteos, mediana, desconocidos y fechas inclusivas sobre un 
   assert.throws(() => summarizeReal({ ...defaultFilters, startDate: '2018-12-31' }, data, options));
 });
 
-test('Datos reales: los diagnósticos poco frecuentes se agrupan en «Otros» sin perder eventos', () => {
-  const codes = Array.from({ length: TOP_DIAGNOSES + 3 }, (_, i) => `J${String(i).padStart(2, '0')}`);
+test('Datos reales: los diagnósticos se entregan completos y ordenados (el gráfico agrupa al mostrar)', () => {
+  const codes = Array.from({ length: 13 }, (_, i) => `J${String(i).padStart(2, '0')}`);
   const rows: Row[] = codes.flatMap((_, d) => Array.from({ length: d + 1 }, () => ({ day: day('2024-05-05'), stay: 1, commune: 13101, region: 13, age: 2, sex: 0, diag: d })));
   const { data, options } = build(rows, codes);
   const result = summarizeReal(defaultFilters, data, options);
-  assert.equal(result.diagnoses.length, TOP_DIAGNOSES + 1);
-  assert.equal(result.diagnoses[0].id, codes.at(-1));
-  assert.equal(result.diagnoses.at(-1)?.id, OTHER_DIAGNOSES_ID);
-  assert.equal(result.diagnoses.at(-1)?.value, 1 + 2 + 3);
+  assert.equal(result.diagnoses.length, codes.length);
+  assert.deepEqual(result.diagnoses.map(d => d.id), [...codes].reverse());
   assertPartitions(result);
+});
+
+test('Datos reales: selección de varias comunas de regiones distintas', () => {
+  const { data, options } = build([
+    { day: day('2024-01-10'), stay: 1, commune: 13101, region: 13, age: 0, sex: 0, diag: 0 },
+    { day: day('2024-01-11'), stay: 2, commune: 8101, region: 8, age: 0, sex: 1, diag: 0 },
+    { day: day('2024-01-12'), stay: 3, commune: 8101, region: 8, age: 0, sex: 1, diag: 1 },
+    { day: day('2024-01-13'), stay: 4, commune: 5101, region: 5, age: 0, sex: 0, diag: 1 },
+  ]);
+  const both = summarizeReal({ ...defaultFilters, communes: ['13101', '08101'] }, data, options);
+  assert.equal(both.indicators.hospitalizations.value, 3);
+  assert.deepEqual(both.communes.map(c => [c.id, c.value]).sort(), [['08101', 2], ['13101', 1]]);
+  assert.deepEqual(both.territories.map(t => t.id).sort(), ['08', '13']);
+  assertPartitions(both);
+  const all = summarizeReal(defaultFilters, data, options);
+  assert.equal(all.communes.length, options.communes.length);
+  assert.equal(sum(all.communes), 4);
+  assert.throws(() => summarizeReal({ ...defaultFilters, communes: ['99999'] }, data, options));
+  assert.throws(() => summarizeReal({ ...defaultFilters, communes: ['13101', '13101'] }, data, options));
 });
 
 test('Datos reales: el decodificador rechaza archivos inconsistentes', () => {

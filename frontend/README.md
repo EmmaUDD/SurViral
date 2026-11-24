@@ -43,8 +43,8 @@ La compilación crea `dist/`; para compartirla se debe servir esa carpeta median
 - Tabla accesible y descarga CSV de la serie, identificada como simulada.
 - Vista de metodología y fuentes.
 - Mapa interactivo de las 16 regiones en panorama y territorio, con islas en recuadros; geometría referencial sin territorio antártico.
-- Territorio: comparación, tabla y mapa de calor región × mes. Evolución: comparación mensual entre años y serie cronológica. Perfil: edad, sexo y diagnósticos.
-- Ambiente y vacunación: paneles de disponibilidad y requisitos de integración; todavía sin fuentes conectadas.
+- Territorio: mapa ampliable con 344 polígonos comunales, catálogo de 346 comunas, búsqueda y selección múltiple entre regiones; comparación, tabla y mapa de calor región × mes. Evolución: mapa de calor año × mes, comparación mensual entre años y serie cronológica. Perfil: edad, sexo y diagnósticos.
+- Vacunación respiratoria: con datos simulados, serie mensual y comparación regional con filtros propios (campaña 2024/2025 y región); con datos GRD reales, solo el aviso de integración pendiente, sin mezclar cifras ficticias.
 - Evolución temporal incluye una actividad logística funcional con datos ficticios: selector de los 12 meses posteriores al corte, filtros de región y comuna, probabilidad de superar un umbral mensual, evaluación temporal y corte de clasificación interactivo. Variables y método en `docs/ACTIVIDAD_REGRESION_LOGISTICA.txt`; pronóstico de cantidades reservado en `docs/IDEA_FUTURA_PRONOSTICO.txt`.
 
 Fecha de referencia provisional: egreso. Geografía: residencia simulada. El filtro de diagnóstico solo modifica el numerador respiratorio del porcentaje. Estas definiciones deben validarse antes de conectar datos reales.
