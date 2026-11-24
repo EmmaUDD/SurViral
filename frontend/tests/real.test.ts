@@ -96,19 +96,21 @@ test('Datos reales: el decodificador rechaza archivos inconsistentes', () => {
 });
 
 const META = new URL('../public/data/grd-meta.json', import.meta.url), BIN = new URL('../public/data/grd.bin', import.meta.url);
-test('Archivos GRD generados: totales coinciden con el notebook de limpieza', { skip: !existsSync(META) && 'Ejecuta npm run prepare-data' }, () => {
+test('Archivos GRD generados: hospitalizaciones coinciden con el notebook de limpieza', { skip: !existsSync(META) && 'Ejecuta npm run prepare-data' }, () => {
   const meta = JSON.parse(readFileSync(META, 'utf-8')) as GrdMeta, bytes = readFileSync(BIN);
   const data = decodeDataset(meta, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
   const options = realFilterOptions(meta);
   const full: Filters = { ...defaultFilters, startDate: meta.minDate, endDate: meta.maxDate };
   const all = summarizeReal(full, data, options);
-  assert.equal(all.indicators.hospitalizations.value, 410_038);
+  // 410.038 egresos del parquet − 36.644 CMA y hospitalización diurna (ES_HOSPITALIZACION = False).
+  assert.equal(all.indicators.hospitalizations.value, 373_394);
+  assert.equal(meta.excludedTotal, 36_644);
   assert.equal(all.monthly.length, 72);
   assertPartitions(all);
-  // Distribución TRAMO_EDAD 2019 publicada por limpieza_basica_GRD.ipynb.
+  // Distribución TRAMO_EDAD 2019 de las hospitalizaciones (ES_HOSPITALIZACION = True) del parquet.
   const y2019 = summarizeReal({ ...defaultFilters, startDate: '2019-01-01', endDate: '2019-12-31' }, data, options);
-  assert.deepEqual(y2019.demographics.age.map(a => a.value), [32806, 11982, 1900, 3806, 6225, 10001, 29710, 1]);
-  assert.equal(summarizeReal(defaultFilters, data, options).indicators.hospitalizations.value, 88_759);
+  assert.deepEqual(y2019.demographics.age.map(a => a.value), [31573, 7636, 1361, 3221, 5605, 9641, 29568, 1]);
+  assert.equal(summarizeReal(defaultFilters, data, options).indicators.hospitalizations.value, 80_819);
   for (const region of options.regions) assertPartitions(summarizeReal({ ...full, region: region.id }, data, options));
   const logistic = logisticFromSeries(defaultFilters, 1, f => summarizeReal(f, data, options).monthly, 'real');
   assert.equal(logistic.mode, 'real');

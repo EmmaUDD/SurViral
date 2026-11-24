@@ -1,5 +1,5 @@
 {
- "rows": 410038,
+ "rows": 373394,
  "baseDate": "2019-01-01",
  "minDate": "2019-01-01",
  "maxDate": "2024-12-31",
@@ -267,8 +267,13 @@
    "label": "J99 · Trastornos respiratorios en enfermedades clasificadas en otra parte"
   }
  ],
- "source": "GRD público 2019–2024, egresos con diagnóstico principal J00–J99",
+ "source": "GRD público 2019–2024, hospitalizaciones con diagnóstico principal J00–J99",
+ "excludedTotal": 36644,
+ "excludedActivities": {
+  "CIRUGÍA MAYOR AMBULATORIA (CMA)": 36410,
+  "HOSPITALIZACIÓN DIURNA": 234
+ },
  "sourceFile": "grd_respiratorio_2019_2024.parquet",
- "sourceModified": "2026-11-23",
+ "sourceModified": "2026-11-24",
  "generatedAt": "2026-11-23"
 }

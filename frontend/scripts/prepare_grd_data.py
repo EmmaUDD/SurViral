@@ -4,6 +4,9 @@ Uso (desde frontend/):  python scripts/prepare_grd_data.py
 Requiere pandas y pyarrow. Lee ../GRD_CIE_TM/GRD_limpio/grd_respiratorio_2019_2024.parquet
 (generado por Procesamiento/limpieza_basica_GRD.ipynb) y escribe en public/data/:
 
+Solo se exportan hospitalizaciones (ES_HOSPITALIZACION = True): se excluyen cirugía mayor ambulatoria
+y hospitalización diurna, que quedan contadas en grd-meta.json.
+
   grd.bin        columnas codificadas como enteros, una tras otra (little-endian):
                  day u16 | stay u16 | commune u16 | region u8 | age u8 | sex u8 | diag u8
   grd-meta.json  cantidad de filas, diccionarios (tramos, diagnósticos) y cobertura.
@@ -32,8 +35,10 @@ SIN_DATO_U16 = 65535
 
 
 def main():
-    df = pd.read_parquet(ORIGEN, columns=['CUT', 'COD_REGION', 'SEXO', 'TRAMO_EDAD', 'FECHA_INGRESO',
-                                          'FECHA_ALTA', 'DIAGNOSTICO1', 'DIAGNOSTICO1_DESC'])
+    todos = pd.read_parquet(ORIGEN, columns=['CUT', 'COD_REGION', 'SEXO', 'TRAMO_EDAD', 'FECHA_INGRESO', 'FECHA_ALTA',
+                                             'DIAGNOSTICO1', 'DIAGNOSTICO1_DESC', 'TIPO_ACTIVIDAD', 'ES_HOSPITALIZACION'])
+    excluidos = todos.loc[~todos['ES_HOSPITALIZACION'], 'TIPO_ACTIVIDAD'].value_counts()
+    df = todos.loc[todos['ES_HOSPITALIZACION']].reset_index(drop=True)
     n = len(df)
 
     dia = (df['FECHA_ALTA'] - FECHA_BASE).dt.days
@@ -80,14 +85,17 @@ def main():
         'ageLabels': TRAMOS,
         'diagnoses': [{'id': c, 'label': f'{c} · {d}' if isinstance(d, str) else c}
                       for c, d in diagnosticos.items()],
-        'source': 'GRD público 2019–2024, egresos con diagnóstico principal J00–J99',
+        'source': 'GRD público 2019–2024, hospitalizaciones con diagnóstico principal J00–J99',
+        'excludedTotal': int(excluidos.sum()),
+        'excludedActivities': {k: int(v) for k, v in excluidos.items()},
         'sourceFile': ORIGEN.name,
         'sourceModified': datetime.fromtimestamp(ORIGEN.stat().st_mtime, timezone.utc).date().isoformat(),
         'generatedAt': date.today().isoformat(),
     }
     (DESTINO / 'grd-meta.json').write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding='utf-8')
 
-    print(f'{n:,} filas · {fecha_min} a {fecha_max} · {len(diagnosticos)} diagnósticos')
+    print(f'{n:,} hospitalizaciones · {fecha_min} a {fecha_max} · {len(diagnosticos)} diagnósticos')
+    print(f'Excluidos (no hospitalización): {int(excluidos.sum()):,} {dict(excluidos)}')
     print(f'Sin región: {int((region == 0).sum())} · edad desconocida: {int((edad == SIN_DATO_U8).sum())} '
           f'· sexo desconocido: {int((sexo == 2).sum())}')
     print(f'Escrito {DESTINO / "grd.bin"} ({(DESTINO / "grd.bin").stat().st_size / 1e6:.1f} MB)')

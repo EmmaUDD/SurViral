@@ -12,6 +12,9 @@ export interface GrdMeta {
   ageLabels: string[];
   diagnoses: Option[];
   source: string;
+  /** Egresos no exportados por no ser hospitalización (CMA, hospitalización diurna). */
+  excludedTotal?: number;
+  excludedActivities?: Record<string, number>;
   sourceFile: string;
   sourceModified: string;
   generatedAt: string;

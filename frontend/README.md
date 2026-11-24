@@ -1,11 +1,11 @@
 # Frontend de Surviral
 
-Explorador de hospitalizaciones respiratorias. Por defecto muestra los **datos GRD reales 2019–2024** (egresos con diagnóstico principal J00–J99) generados por `Procesamiento/limpieza_basica_GRD.ipynb`. La demostración con datos ficticios sigue disponible con `npm run dev:simulated`.
+Explorador de hospitalizaciones respiratorias. Por defecto muestra los **datos GRD reales 2019–2024** (hospitalizaciones con diagnóstico principal J00–J99; sin cirugía mayor ambulatoria ni hospitalización diurna) generados por `Procesamiento/limpieza_basica_GRD.ipynb`. La demostración con datos ficticios sigue disponible con `npm run dev:simulated`.
 
 ## Datos reales
 
 1. Ejecuta `Procesamiento/limpieza_basica_GRD.ipynb` completo: exporta `GRD_CIE_TM/GRD_limpio/grd_respiratorio_2019_2024.parquet`.
-2. En `frontend/`, ejecuta `npm run prepare-data` (requiere Python con pandas y pyarrow). Genera `public/data/grd.bin` (~4 MB) y `public/data/grd-meta.json`, sin identificadores de pacientes ni hospitales.
+2. En `frontend/`, ejecuta `npm run prepare-data` (requiere Python con pandas y pyarrow). Genera, solo con `ES_HOSPITALIZACION = True`, `public/data/grd.bin` (~3,7 MB) y `public/data/grd-meta.json`, sin identificadores de pacientes ni hospitales.
 3. Repite el paso 2 cada vez que cambie el parquet.
 
 El navegador descarga esos dos archivos una vez y calcula todos los filtros localmente (`src/services/realAggregate.ts`). Territorio = comuna de residencia; tramos de edad = `TRAMO_EDAD` del notebook. La proporción sobre el total de egresos no es calculable porque las bases del proyecto solo contienen egresos respiratorios.

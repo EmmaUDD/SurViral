@@ -121,11 +121,12 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
       mode: 'real', source: meta.source, version: `${meta.sourceFile} · ${meta.sourceModified}`, updatedAt: meta.generatedAt,
       minDate: meta.minDate, maxDate: meta.maxDate,
       territorialBasis: 'residencia', temporalBasis: 'discharge',
-      definition: 'Egresos hospitalarios con diagnóstico principal CIE-10 J00–J99 (capítulo respiratorio). Fecha de referencia: alta. Territorio: comuna de residencia del paciente.',
+      definition: 'Hospitalizaciones con diagnóstico principal CIE-10 J00–J99 (capítulo respiratorio); excluye cirugía mayor ambulatoria y hospitalización diurna. Fecha de referencia: alta. Territorio: comuna de residencia del paciente.',
       appliedFilters: { ...filters }, respiratoryTotal: selected, universeTotal: universe,
       missingStay, unknownAge: ageCounts[ageBands.length], unknownSex: sexCounts[2],
       warnings: [
         'Los archivos GRD del proyecto contienen solo egresos respiratorios; la proporción sobre el total de egresos no es calculable.',
+        ...(meta.excludedTotal ? [`Se excluyen ${meta.excludedTotal.toLocaleString('es-CL')} egresos que no son hospitalizaciones (cirugía mayor ambulatoria y hospitalización diurna) en todo el período.`] : []),
         ...(unknownRegion ? [`${unknownRegion} egresos sin comuna de residencia registrada se cuentan en los totales, pero no en el mapa ni en el mapa de calor.`] : []),
       ],
     },
