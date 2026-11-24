@@ -8,6 +8,8 @@ Explorador de hospitalizaciones respiratorias. Por defecto muestra los **datos G
 2. En `frontend/`, ejecuta `npm run prepare-data` (requiere Python con pandas y pyarrow). Genera, solo con `ES_HOSPITALIZACION = True`, `public/data/grd.bin` (~3,7 MB) y `public/data/grd-meta.json`, sin identificadores de pacientes ni hospitales.
 3. Repite el paso 2 cada vez que cambie el parquet.
 
+Para las **tasas por 100.000 beneficiarios** el paso 2 también lee `Procesamiento/poblacion_fonasa_2019_2024.csv`. Esa tabla se genera con `python Procesamiento/poblacion_fonasa.py` a partir de los zip de beneficiarios FONASA en `datos_grd/Fonasa/` (no versionados por su tamaño; ~1,3 GB). El numerador de las tasas usa solo los hospitales presentes todos los años (`HOSPITAL_EN_COHORTE`).
+
 El navegador descarga esos dos archivos una vez y calcula todos los filtros localmente (`src/services/realAggregate.ts`). Territorio = comuna de residencia; tramos de edad = `TRAMO_EDAD` del notebook. La proporción sobre el total de egresos no es calculable porque las bases del proyecto solo contienen egresos respiratorios.
 
 ## Ejecutar en tu computador

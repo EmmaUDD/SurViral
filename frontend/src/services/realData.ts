@@ -16,6 +16,8 @@ export interface GrdMeta {
   excludedTotal?: number;
   excludedActivities?: Record<string, number>;
   sourceFile: string;
+  /** Beneficiarios FONASA: [año, CUT (0 = sin comuna), sexo, tramo (255 = desconocido), personas]. */
+  population?: { source: string; file: string; rows: [number, number, number, number, number][] };
   sourceModified: string;
   generatedAt: string;
 }
@@ -30,6 +32,7 @@ export interface GrdDataset {
   age: Uint8Array;       // índice en ageBands; UNKNOWN_U8 = desconocido
   sex: Uint8Array;       // 0 femenino, 1 masculino, 2 desconocido
   diag: Uint8Array;      // índice en meta.diagnoses
+  cohort: Uint8Array;    // 1 = hospital presente en todos los años (HOSPITAL_EN_COHORTE)
 }
 export const NO_STAY = 65535;
 export const UNKNOWN_U8 = 255;
@@ -37,7 +40,7 @@ export const SEX_IDS = ['female', 'male', 'unknown'] as const;
 
 export function decodeDataset(meta: GrdMeta, buffer: ArrayBuffer): GrdDataset {
   const n = meta.rows;
-  if (buffer.byteLength !== 10 * n) throw new Error(`Archivo de datos inconsistente: se esperaban ${10 * n} bytes y llegaron ${buffer.byteLength}. Vuelve a ejecutar scripts/prepare_grd_data.py.`);
+  if (buffer.byteLength !== 11 * n) throw new Error(`Archivo de datos inconsistente: se esperaban ${11 * n} bytes y llegaron ${buffer.byteLength}. Vuelve a ejecutar scripts/prepare_grd_data.py.`);
   if (meta.ageLabels.length !== ageBands.length || meta.ageLabels.some((label, i) => label !== ageBands[i].label)) throw new Error('Los tramos de edad del archivo de datos no coinciden con src/utils/ages.ts.');
   return {
     meta,
@@ -48,6 +51,7 @@ export function decodeDataset(meta: GrdMeta, buffer: ArrayBuffer): GrdDataset {
     age: new Uint8Array(buffer, 7 * n, n),
     sex: new Uint8Array(buffer, 8 * n, n),
     diag: new Uint8Array(buffer, 9 * n, n),
+    cohort: new Uint8Array(buffer, 10 * n, n),
   };
 }
 

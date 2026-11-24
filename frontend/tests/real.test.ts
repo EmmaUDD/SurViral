@@ -8,12 +8,13 @@ import { ageBands } from '../src/utils/ages.ts';
 import { defaultFilters } from '../src/app/defaults.ts';
 import type { Filters, Overview } from '../src/types/dashboard.ts';
 
-type Row = { day: number; stay: number; commune: number; region: number; age: number; sex: number; diag: number };
-function build(rows: Row[], diagnoses = ['J18', 'J45']) {
-  const n = rows.length, buffer = new ArrayBuffer(10 * n);
-  const cols = [new Uint16Array(buffer, 0, n), new Uint16Array(buffer, 2 * n, n), new Uint16Array(buffer, 4 * n, n), new Uint8Array(buffer, 6 * n, n), new Uint8Array(buffer, 7 * n, n), new Uint8Array(buffer, 8 * n, n), new Uint8Array(buffer, 9 * n, n)];
-  rows.forEach((r, i) => [r.day, r.stay, r.commune, r.region, r.age, r.sex, r.diag].forEach((v, c) => { cols[c][i] = v; }));
-  const meta: GrdMeta = { rows: n, baseDate: '2019-01-01', minDate: '2019-01-01', maxDate: '2024-12-31', maxStay: 100, ageLabels: ageBands.map(b => b.label), diagnoses: diagnoses.map(id => ({ id, label: id })), source: 'prueba', sourceFile: 'prueba', sourceModified: '2026-01-01', generatedAt: '2026-01-01' };
+type Row = { day: number; stay: number; commune: number; region: number; age: number; sex: number; diag: number; cohort?: number };
+type PopRow = [number, number, number, number, number];
+function build(rows: Row[], diagnoses = ['J18', 'J45'], population?: PopRow[]) {
+  const n = rows.length, buffer = new ArrayBuffer(11 * n);
+  const cols = [new Uint16Array(buffer, 0, n), new Uint16Array(buffer, 2 * n, n), new Uint16Array(buffer, 4 * n, n), new Uint8Array(buffer, 6 * n, n), new Uint8Array(buffer, 7 * n, n), new Uint8Array(buffer, 8 * n, n), new Uint8Array(buffer, 9 * n, n), new Uint8Array(buffer, 10 * n, n)];
+  rows.forEach((r, i) => [r.day, r.stay, r.commune, r.region, r.age, r.sex, r.diag, r.cohort ?? 1].forEach((v, c) => { cols[c][i] = v; }));
+  const meta: GrdMeta = { rows: n, baseDate: '2019-01-01', minDate: '2019-01-01', maxDate: '2024-12-31', maxStay: 100, ageLabels: ageBands.map(b => b.label), diagnoses: diagnoses.map(id => ({ id, label: id })), source: 'prueba', sourceFile: 'prueba', sourceModified: '2026-01-01', generatedAt: '2026-01-01', ...(population ? { population: { source: 'prueba', file: 'prueba', rows: population } } : {}) };
   const data = decodeDataset(meta, buffer);
   return { data, options: realFilterOptions(meta) };
 }
@@ -28,7 +29,7 @@ function assertPartitions(data: Overview) {
 test('Datos reales: conteos, mediana, desconocidos y fechas inclusivas sobre un conjunto pequeño', () => {
   const { data, options } = build([
     { day: day('2024-01-01'), stay: 0, commune: 13101, region: 13, age: 0, sex: 0, diag: 0 },
-    { day: day('2024-01-31'), stay: 4, commune: 13101, region: 13, age: 6, sex: 1, diag: 0 },
+    { day: day('2024-01-31'), stay: 4, commune: 13101, region: 13, age: 5, sex: 1, diag: 0 },
     { day: day('2024-02-15'), stay: 10, commune: 8101, region: 8, age: UNKNOWN_U8, sex: 2, diag: 1 },
     { day: day('2024-03-01'), stay: NO_STAY, commune: 0, region: 0, age: 1, sex: 1, diag: 1 },
     { day: day('2023-12-31'), stay: 7, commune: 13101, region: 13, age: 0, sex: 0, diag: 0 },
@@ -89,10 +90,43 @@ test('Datos reales: selección de varias comunas de regiones distintas', () => {
   assert.throws(() => summarizeReal({ ...defaultFilters, communes: ['13101', '13101'] }, data, options));
 });
 
+test('Datos reales: tasas por 100.000 con cohorte, personas-año y filtros del denominador', () => {
+  const rows: Row[] = [
+    { day: day('2023-03-01'), stay: 1, commune: 13101, region: 13, age: 0, sex: 0, diag: 0 },
+    { day: day('2023-04-01'), stay: 1, commune: 13101, region: 13, age: 5, sex: 1, diag: 1 },
+    { day: day('2023-05-01'), stay: 1, commune: 8101, region: 8, age: 0, sex: 0, diag: 0, cohort: 0 },
+    { day: day('2024-05-01'), stay: 1, commune: 8101, region: 8, age: 0, sex: 0, diag: 0 },
+  ];
+  const population: PopRow[] = [
+    [2023, 13101, 0, 0, 1_000], [2023, 13101, 1, 5, 1_000], [2023, 8101, 0, 0, 2_000], [2023, 0, 0, 0, 1_000],
+    [2024, 13101, 0, 0, 1_000], [2024, 13101, 1, 5, 1_000], [2024, 8101, 0, 0, 2_000], [2024, 0, 0, 0, 1_000],
+  ];
+  const { data, options } = build(rows, ['J18', 'J45'], population);
+  const y2023 = summarizeReal({ ...defaultFilters, startDate: '2023-01-01', endDate: '2023-12-31' }, data, options);
+  // Numerador: 2 de la cohorte (el egreso fuera de la cohorte no cuenta). Denominador: 5.000 beneficiarios, incluida la comuna desconocida.
+  assert.equal(y2023.meta.rate?.cohortEvents, 2);
+  assert.equal(y2023.meta.rate?.outsideCohort, 1);
+  assert.equal(y2023.indicators.rate?.value, 100_000 * 2 / 5_000);
+  assert.equal(y2023.territories.find(t => t.id === '13')?.rate, 100_000 * 2 / 2_000);
+  assert.equal(y2023.territories.find(t => t.id === '08')?.rate, 0);
+  assert.equal(y2023.demographics.age[0].rate, 100_000 * 1 / 4_000);
+  assert.ok(y2023.meta.warnings.some(w => w.includes('cohorte')), 'Aviso cuando ≥ 5 % queda fuera de la cohorte');
+  const asthma = summarizeReal({ ...defaultFilters, startDate: '2023-01-01', endDate: '2023-12-31', diagnosis: 'J45' }, data, options);
+  assert.equal(asthma.indicators.rate?.value, 100_000 * 1 / 5_000, 'El diagnóstico cambia el numerador, no el denominador');
+  // Medio año: la población cuenta como personas-año proporcionales a los días cubiertos.
+  const half = summarizeReal({ ...defaultFilters, startDate: '2024-01-01', endDate: '2024-06-30', region: '08' }, data, options);
+  assert.ok(Math.abs(half.meta.rate!.personYears - 2_000 * 182 / 366) < 1e-6);
+  assert.ok(Math.abs(half.indicators.rate!.value! - 100_000 / (2_000 * 182 / 366)) < 1e-6);
+  const unknownSex = summarizeReal({ ...defaultFilters, sex: 'unknown' }, data, options);
+  assert.equal(unknownSex.indicators.rate?.reason, 'no_population');
+  const withoutPopulation = build(rows);
+  assert.equal(summarizeReal(defaultFilters, withoutPopulation.data, withoutPopulation.options).indicators.rate?.reason, 'no_population');
+});
+
 test('Datos reales: el decodificador rechaza archivos inconsistentes', () => {
   const { data } = build([{ day: 0, stay: 0, commune: 13101, region: 13, age: 0, sex: 0, diag: 0 }]);
-  assert.throws(() => decodeDataset({ ...data.meta, rows: 2 }, new ArrayBuffer(10)), /inconsistente/);
-  assert.throws(() => decodeDataset({ ...data.meta, ageLabels: ['0-4'] }, new ArrayBuffer(10)), /tramos/);
+  assert.throws(() => decodeDataset({ ...data.meta, rows: 2 }, new ArrayBuffer(11)), /inconsistente/);
+  assert.throws(() => decodeDataset({ ...data.meta, ageLabels: ['0-4'] }, new ArrayBuffer(11)), /tramos/);
 });
 
 const META = new URL('../public/data/grd-meta.json', import.meta.url), BIN = new URL('../public/data/grd.bin', import.meta.url);
@@ -109,8 +143,13 @@ test('Archivos GRD generados: hospitalizaciones coinciden con el notebook de lim
   assertPartitions(all);
   // Distribución TRAMO_EDAD 2019 de las hospitalizaciones (ES_HOSPITALIZACION = True) del parquet.
   const y2019 = summarizeReal({ ...defaultFilters, startDate: '2019-01-01', endDate: '2019-12-31' }, data, options);
-  assert.deepEqual(y2019.demographics.age.map(a => a.value), [31573, 7636, 1361, 3221, 5605, 9641, 29568, 1]);
+  assert.deepEqual(y2019.demographics.age.map(a => a.value), [31573, 8256, 3962, 5605, 9641, 29568, 1]);
   assert.equal(summarizeReal(defaultFilters, data, options).indicators.hospitalizations.value, 80_819);
+  // Tasas nacionales de la sección 7 del notebook (cohorte constante / beneficiarios FONASA × 100.000).
+  for (const [year, expected] of [[2019, 597.0], [2020, 208.5], [2023, 493.3], [2024, 459.3]] as const) {
+    const rate = summarizeReal({ ...defaultFilters, startDate: `${year}-01-01`, endDate: `${year}-12-31` }, data, options).indicators.rate?.value;
+    assert.ok(rate != null && Math.abs(rate - expected) < 0.05, `${year}: ${rate} ≠ ${expected}`);
+  }
   for (const region of options.regions) assertPartitions(summarizeReal({ ...full, region: region.id }, data, options));
   const logistic = logisticFromSeries(defaultFilters, 1, f => summarizeReal(f, data, options).monthly, 'real');
   assert.equal(logistic.mode, 'real');

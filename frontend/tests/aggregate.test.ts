@@ -113,7 +113,7 @@ test('Catálogo comunal, coherencia de región/comuna y reconciliación con los 
 
 
 test('Los tramos del proyecto cubren sin solapamientos las edades 0-109 (BINS_TRAMO del notebook)', () => {
-  const bins = [0, 5, 13, 18, 30, 50, 65, 110];
+  const bins = [0, 5, 15, 30, 50, 65, 110];
   for (let age = 0; age <= 109; age++) {
     const groups = filterOptions.ages.filter(g => matchesAge(age, g.id as typeof defaultFilters.age));
     assert.equal(groups.length, 1, `Edad ${age}`);
@@ -121,8 +121,8 @@ test('Los tramos del proyecto cubren sin solapamientos las edades 0-109 (BINS_TR
   }
   assert.equal(matchesAge(null, 'unknown'), true);
   assert.equal(matchesAge(null, '0to4'), false);
-  assert.equal(matchesAge(17, '13to17'), true);
-  assert.equal(matchesAge(18, '13to17'), false);
+  assert.equal(matchesAge(14, '5to14'), true);
+  assert.equal(matchesAge(15, '5to14'), false);
   assert.equal(matchesAge(109, '65plus'), true);
   const total = filterOptions.ages.reduce((sum, group) => sum + summarize({ ...defaultFilters, age: group.id as typeof defaultFilters.age }).meta.respiratoryTotal, 0);
   assert.equal(total, summarize(defaultFilters).meta.respiratoryTotal);

@@ -22,6 +22,19 @@ function monthOfDay(meta: GrdMeta): Uint16Array {
   return lookup;
 }
 
+const PER = 100_000;
+/** Años completos o parciales cubiertos por [startDate, endDate]: fracción del año para pasar de beneficiarios a personas-año. */
+function yearFractions(startDate: string, endDate: string): Map<number, number> {
+  const fractions = new Map<number, number>();
+  for (let year = Number(startDate.slice(0, 4)); year <= Number(endDate.slice(0, 4)); year++) {
+    const from = Math.max(Date.parse(`${year}-01-01T00:00:00Z`), Date.parse(`${startDate}T00:00:00Z`));
+    const to = Math.min(Date.parse(`${year}-12-31T00:00:00Z`), Date.parse(`${endDate}T00:00:00Z`));
+    const days = Date.UTC(year + 1, 0, 1) - Date.UTC(year, 0, 1);
+    fractions.set(year, (to - from + DAY_MS) / days);
+  }
+  return fractions;
+}
+
 function measure(value: number | null, unit: Measure['unit'], validCount: number, reason?: Measure['reason']): Measure {
   return { value, status: value === null ? 'unavailable' : 'available', unit, validCount, ...(reason ? { reason } : {}) };
 }
@@ -56,7 +69,9 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
   const diagCounts = new Uint32Array(meta.diagnoses.length), ageCounts = new Uint32Array(ageBands.length + 1), sexCounts = new Uint32Array(3);
   const stays = new Uint32Array(meta.maxStay + 1), communeCounts = new Uint32Array(65536);
   let universe = 0, selected = 0, missingStay = 0;
-  const { day, stay, commune, region, age, sex, diag } = data;
+  const regionCohort = new Uint32Array(17), ageCohort = new Uint32Array(ageBands.length + 1);
+  let cohortSelected = 0;
+  const { day, stay, commune, region, age, sex, diag, cohort } = data;
   for (let i = 0; i < meta.rows; i++) {
     const d = day[i];
     if (d < startDay || d > endDay) continue;
@@ -74,10 +89,31 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
     diagCounts[diag[i]]++; sexCounts[sex[i]]++;
     ageCounts[age[i] === UNKNOWN_U8 ? ageBands.length : age[i]]++;
     if (stay[i] === NO_STAY) missingStay++; else stays[stay[i]]++;
+    if (cohort[i]) { cohortSelected++; regionCohort[r]++; ageCohort[age[i] === UNKNOWN_U8 ? ageBands.length : age[i]]++; }
   }
 
+  // Denominador: beneficiarios FONASA con los mismos filtros de territorio, edad y sexo (el diagnóstico no lo cambia).
+  const population = meta.population?.rows;
+  const rateAvailable = !!population && filters.age !== 'unknown' && filters.sex !== 'unknown';
+  const fractions = yearFractions(filters.startDate, filters.endDate);
+  let personYears = 0;
+  const regionPY = new Float64Array(17), agePY = new Float64Array(ageBands.length + 1);
+  if (rateAvailable) for (const [year, cut, sexId, ageId, persons] of population) {
+    const fraction = fractions.get(year);
+    if (!fraction) continue;
+    const r = Math.floor(cut / 1000);
+    if (regionCode >= 0 && r !== regionCode) continue;
+    if (communeCode >= 0 && cut !== communeCode) continue;
+    if (communeSet && !communeSet.has(cut)) continue;
+    if (ageCode >= 0 && ageId !== ageCode) continue;
+    if (sexCode >= 0 && sexId !== sexCode) continue;
+    const py = persons * fraction;
+    personYears += py; regionPY[r] += py; agePY[ageId === UNKNOWN_U8 ? ageBands.length : ageId] += py;
+  }
+  const rateOf = (events: number, py: number) => rateAvailable && py > 0 ? PER * events / py : null;
+
   const percent = (value: number) => selected ? 100 * value / selected : null;
-  const category = (id: string, label: string, value: number): CategoryValue => ({ id, label, value, percent: percent(value) });
+  const category = (id: string, label: string, value: number, rate?: number | null): CategoryValue => ({ id, label, value, percent: percent(value), ...(rate === undefined ? {} : { rate }) });
   const monthly: TimePoint[] = Array.from({ length: months }, (_, m) => {
     const absolute = firstMonth + m, year = baseYear + Math.floor(absolute / 12), month = absolute % 12 + 1;
     const period = `${year}-${String(month).padStart(2, '0')}`;
@@ -92,7 +128,7 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
 
   const selectedRegions = communeSet ? new Set(options.communes.filter(c => communeSet.has(Number(c.id))).map(c => c.region)) : null;
   const shownRegions = regions.filter(r => (filters.region === 'all' || r.id === filters.region) && (!selectedRegions || selectedRegions.has(r.id)));
-  const territories = shownRegions.map(r => category(r.id, r.label, regionCounts[Number(r.id)]));
+  const territories = shownRegions.map(r => category(r.id, r.label, regionCounts[Number(r.id)], rateOf(regionCohort[Number(r.id)], regionPY[Number(r.id)])));
   if (filters.region === 'all' && !communeSet && regionCounts[0] > 0) territories.push(category(UNKNOWN_REGION_ID, 'Sin región de residencia registrada', regionCounts[0]));
   const communes = options.communes
     .filter(c => (filters.region === 'all' || c.region === filters.region) && (filters.commune === 'all' || c.id === filters.commune) && (!communeSet || communeSet.has(Number(c.id))))
@@ -107,6 +143,7 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
       hospitalizations: measure(selected, 'events', selected),
       proportion: measure(null, 'percent', universe, 'no_universe'),
       medianStay: measure(median, 'days', validStays, median === null ? selected ? 'missing_values' : 'no_events' : undefined),
+      rate: measure(rateOf(cohortSelected, personYears), 'rate', cohortSelected, rateAvailable && personYears > 0 ? undefined : 'no_population'),
     },
     monthly,
     regionalMonthly: shownRegions.map(r => ({ ...r, points: monthly.map((p, m) => ({ ...p, value: regionMonth[Number(r.id) * months + m] })) })),
@@ -114,7 +151,7 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
     territories,
     communes,
     demographics: {
-      age: [...ageBands.map((b, i) => category(b.id, b.label, ageCounts[i])), category('unknown', 'Edad desconocida', ageCounts[ageBands.length])],
+      age: [...ageBands.map((b, i) => category(b.id, b.label, ageCounts[i], rateOf(ageCohort[i], agePY[i]))), category('unknown', 'Edad desconocida', ageCounts[ageBands.length], null)],
       sex: options.sexes.map((o, i) => category(o.id, o.label, sexCounts[i])),
     },
     meta: {
@@ -124,9 +161,11 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
       definition: 'Hospitalizaciones con diagnóstico principal CIE-10 J00–J99 (capítulo respiratorio); excluye cirugía mayor ambulatoria y hospitalización diurna. Fecha de referencia: alta. Territorio: comuna de residencia del paciente.',
       appliedFilters: { ...filters }, respiratoryTotal: selected, universeTotal: universe,
       missingStay, unknownAge: ageCounts[ageBands.length], unknownSex: sexCounts[2],
+      rate: { cohortEvents: cohortSelected, outsideCohort: selected - cohortSelected, personYears },
       warnings: [
         'Los archivos GRD del proyecto contienen solo egresos respiratorios; la proporción sobre el total de egresos no es calculable.',
         ...(meta.excludedTotal ? [`Se excluyen ${meta.excludedTotal.toLocaleString('es-CL')} egresos que no son hospitalizaciones (cirugía mayor ambulatoria y hospitalización diurna) en todo el período.`] : []),
+        ...(selected && (selected - cohortSelected) / selected >= 0.05 ? [`${(100 * (selected - cohortSelected) / selected).toLocaleString('es-CL', { maximumFractionDigits: 1 })} % de las hospitalizaciones de esta selección son de hospitales que entraron al GRD en 2023–2024. La tasa usa solo la cohorte de hospitales presentes todos los años, por lo que no es comparable con otros territorios o años.`] : []),
         ...(unknownRegion ? [`${unknownRegion} egresos sin comuna de residencia registrada se cuentan en los totales, pero no en el mapa ni en el mapa de calor.`] : []),
       ],
     },

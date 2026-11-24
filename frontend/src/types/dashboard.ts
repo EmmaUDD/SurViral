@@ -1,6 +1,6 @@
 /** Contratos provisionales: requieren validación con el equipo de datos. */
 export type Sex = 'female' | 'male' | 'unknown';
-export type AgeGroup = 'all' | '0to4' | '5to12' | '13to17' | '18to29' | '30to49' | '50to64' | '65plus' | 'unknown';
+export type AgeGroup = 'all' | '0to4' | '5to14' | '15to29' | '30to49' | '50to64' | '65plus' | 'unknown';
 export interface Filters {
   startDate: string;
   endDate: string;
@@ -26,8 +26,8 @@ export interface FilterOptions {
 export interface Measure {
   value: number | null;
   status: 'available' | 'unavailable';
-  reason?: 'zero_denominator' | 'no_events' | 'missing_values' | 'no_universe';
-  unit: 'events' | 'percent' | 'days';
+  reason?: 'zero_denominator' | 'no_events' | 'missing_values' | 'no_universe' | 'no_population';
+  unit: 'events' | 'percent' | 'days' | 'rate';
   validCount: number;
 }
 export interface TimePoint {
@@ -41,6 +41,8 @@ export interface CategoryValue {
   label: string;
   value: number;
   percent: number | null;
+  /** Hospitalizaciones (cohorte) por 100.000 beneficiarios por año; ausente sin datos de población. */
+  rate?: number | null;
 }
 export interface SourceMetadata {
   mode: 'simulated' | 'real';
@@ -59,10 +61,12 @@ export interface SourceMetadata {
   unknownAge: number;
   unknownSex: number;
   warnings: string[];
+  /** Tasas: numerador solo con hospitales de la cohorte constante. */
+  rate?: { cohortEvents: number; outsideCohort: number; personYears: number };
 }
 export interface Overview {
   status: 'ready' | 'empty';
-  indicators: { hospitalizations: Measure; proportion: Measure; medianStay: Measure };
+  indicators: { hospitalizations: Measure; proportion: Measure; medianStay: Measure; rate?: Measure };
   monthly: TimePoint[];
   diagnoses: CategoryValue[];
   territories: CategoryValue[];

@@ -17,7 +17,9 @@ export function OverviewScreen({ data, reset, methodology, regions, onRegion }: 
     <div className="section-kicker"><span>La selección en cifras</span><span>Eventos de hospitalización · {SIMULATED ? 'datos ficticios' : 'GRD 2019–2024'}</span></div>
     <div className="metric-grid">
       <MetricCard title={specific ? 'Hospitalizaciones del diagnóstico' : 'Hospitalizaciones respiratorias'} measure={indicators.hospitalizations} detail="Eventos del período y población seleccionados" icon={Activity} />
-      <MetricCard title="Proporción entre egresos" measure={indicators.proportion} detail={`${number(meta.respiratoryTotal)} respiratorios / ${number(meta.universeTotal)} egresos del universo`} icon={Percent} tone="teal" />
+      {indicators.rate && meta.rate
+        ? <MetricCard title="Tasa anual por 100.000 beneficiarios FONASA" measure={indicators.rate} detail={`${number(meta.rate.cohortEvents)} hospitalizaciones en hospitales de la cohorte / ${number(Math.round(meta.rate.personYears))} beneficiarios-año`} icon={Percent} tone="teal" />
+        : <MetricCard title="Proporción entre egresos" measure={indicators.proportion} detail={`${number(meta.respiratoryTotal)} respiratorios / ${number(meta.universeTotal)} egresos del universo`} icon={Percent} tone="teal" />}
       <MetricCard title="Estancia mediana" measure={indicators.medianStay} detail={`${number(indicators.medianStay.validCount)} estancias válidas · ${number(meta.missingStay)} sin información`} icon={Clock3} tone="navy" />
     </div>
     {data.status === 'empty' && <EmptyState reset={reset} />}
