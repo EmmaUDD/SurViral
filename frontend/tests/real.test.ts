@@ -156,10 +156,10 @@ test('Archivos GRD generados: hospitalizaciones coinciden con el notebook de lim
   assert.equal(y2019.diagnoses.find(d => d.id === 'grupo-neumonia')?.value, 33_971);
   assert.equal(summarizeReal({ ...y2019f, diagnosis: 'grupo-neumonia' }, data, options).indicators.hospitalizations.value, 33_971);
   assert.equal(sum(y2019.diagnosisCodes ?? []), y2019.indicators.hospitalizations.value);
-  // Tasa regional ajustada por edad = tasas_region.csv del notebook (Aysén y Metropolitana, 2019).
-  for (const [region, expected] of [['11', 1063.8], ['13', 653.4]] as const) {
-    const adjusted = y2019.territories.find(t => t.id === region)?.adjustedRate;
-    assert.ok(adjusted != null && Math.abs(adjusted - expected) < 0.05, `${region}: ${adjusted} ≠ ${expected}`);
+  // Tasa regional (hospitalizaciones / beneficiarios de la región) = tasas_region.csv del notebook, 2019.
+  for (const [region, expected] of [['11', 1031.4], ['13', 690.4], ['02', 541.1], ['05', 563.3]] as const) {
+    const rate = y2019.territories.find(t => t.id === region)?.rate;
+    assert.ok(rate != null && Math.abs(rate - expected) < 0.05, `${region}: ${rate} ≠ ${expected}`);
   }
   // La tasa mensual suma la anual cuando el año está completo.
   assert.ok(Math.abs(y2019.monthly.reduce((t, p) => t + (p.rate ?? 0), 0) - y2019.indicators.rate!.value!) < 1e-6);

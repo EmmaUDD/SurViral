@@ -47,8 +47,6 @@ export interface CategoryValue {
   rate?: number | null;
   /** Hospitalizaciones de la cohorte en el numerador de la tasa (estabilidad). */
   rateEvents?: number;
-  /** Tasa ajustada por edad (método directo); solo sin filtro de edad. */
-  adjustedRate?: number | null;
 }
 export interface SourceMetadata {
   mode: 'simulated' | 'real';

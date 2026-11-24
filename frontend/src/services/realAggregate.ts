@@ -23,19 +23,6 @@ function monthOfDay(meta: GrdMeta): Uint16Array {
 }
 
 const PER = 100_000;
-const weightCache = new WeakMap<GrdMeta, Float64Array>();
-/** Pesos de la población estándar: beneficiarios FONASA del país, 2019-2024, por tramo de edad conocido. */
-export function standardWeights(meta: GrdMeta): Float64Array {
-  let weights = weightCache.get(meta);
-  if (!weights) {
-    weights = new Float64Array(ageBands.length);
-    for (const [, , , ageId, persons] of meta.population?.rows ?? []) if (ageId !== UNKNOWN_U8) weights[ageId] += persons;
-    const total = weights.reduce((sum, w) => sum + w, 0);
-    if (total > 0) weights.forEach((w, i) => { weights![i] = w / total; });
-    weightCache.set(meta, weights);
-  }
-  return weights;
-}
 /** Años completos o parciales cubiertos por [startDate, endDate]: fracción del año para pasar de beneficiarios a personas-año. */
 function yearFractions(startDate: string, endDate: string): Map<number, number> {
   const fractions = new Map<number, number>();
@@ -86,7 +73,6 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
   let universe = 0, selected = 0, missingStay = 0;
   const regionCohort = new Uint32Array(17), ageCohort = new Uint32Array(ageBands.length + 1);
   const communeCohort = new Uint32Array(65536), monthCohort = new Uint32Array(months);
-  const regionAgeCohort = new Uint32Array(17 * ageBands.length);
   let cohortSelected = 0;
   const { day, stay, commune, region, age, sex, diag, cohort } = data;
   for (let i = 0; i < meta.rows; i++) {
@@ -109,7 +95,6 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
     if (cohort[i]) {
       cohortSelected++; regionCohort[r]++; communeCohort[commune[i]]++; monthCohort[m]++;
       ageCohort[age[i] === UNKNOWN_U8 ? ageBands.length : age[i]]++;
-      if (age[i] !== UNKNOWN_U8) regionAgeCohort[r * ageBands.length + age[i]]++;
     }
   }
 
@@ -119,7 +104,7 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
   const fractions = yearFractions(filters.startDate, filters.endDate);
   let personYears = 0;
   const regionPY = new Float64Array(17), agePY = new Float64Array(ageBands.length + 1), communePY = new Float64Array(65536);
-  const regionAgePY = new Float64Array(17 * ageBands.length), yearPopulation = new Map<number, number>();
+  const yearPopulation = new Map<number, number>();
   if (rateAvailable) for (const [year, cut, sexId, ageId, persons] of population) {
     const fraction = fractions.get(year);
     if (!fraction) continue;
@@ -131,23 +116,9 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
     if (sexCode >= 0 && sexId !== sexCode) continue;
     const py = persons * fraction;
     personYears += py; regionPY[r] += py; communePY[cut] += py; agePY[ageId === UNKNOWN_U8 ? ageBands.length : ageId] += py;
-    if (ageId !== UNKNOWN_U8) regionAgePY[r * ageBands.length + ageId] += py;
     yearPopulation.set(year, (yearPopulation.get(year) ?? 0) + persons);
   }
   const rateOf = (events: number, py: number) => rateAvailable && py > 0 ? PER * events / py : null;
-  // Tasa ajustada por edad (método directo) con la población estándar del país; solo sin filtro de edad.
-  const weights = rateAvailable && ageCode < 0 ? standardWeights(meta) : null;
-  const adjustedOf = (r: number) => {
-    if (!weights) return null;
-    let total = 0;
-    for (let a = 0; a < ageBands.length; a++) {
-      const py = regionAgePY[r * ageBands.length + a];
-      if (py <= 0) return null;
-      total += weights[a] * regionAgeCohort[r * ageBands.length + a] / py;
-    }
-    return PER * total;
-  };
-
   const percent = (value: number) => selected ? 100 * value / selected : null;
   const category = (id: string, label: string, value: number, rate?: number | null): CategoryValue => ({ id, label, value, percent: percent(value), ...(rate === undefined ? {} : { rate }) });
   const monthly: TimePoint[] = Array.from({ length: months }, (_, m) => {
@@ -168,7 +139,7 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
 
   const selectedRegions = communeSet ? new Set(options.communes.filter(c => communeSet.has(Number(c.id))).map(c => c.region)) : null;
   const shownRegions = regions.filter(r => (filters.region === 'all' || r.id === filters.region) && (!selectedRegions || selectedRegions.has(r.id)));
-  const territories = shownRegions.map(r => ({ ...category(r.id, r.label, regionCounts[Number(r.id)], rateOf(regionCohort[Number(r.id)], regionPY[Number(r.id)])), ...(rateAvailable ? { rateEvents: regionCohort[Number(r.id)], adjustedRate: adjustedOf(Number(r.id)) } : {}) }));
+  const territories = shownRegions.map(r => ({ ...category(r.id, r.label, regionCounts[Number(r.id)], rateOf(regionCohort[Number(r.id)], regionPY[Number(r.id)])), ...(rateAvailable ? { rateEvents: regionCohort[Number(r.id)] } : {}) }));
   if (filters.region === 'all' && !communeSet && regionCounts[0] > 0) territories.push(category(UNKNOWN_REGION_ID, 'Sin región de residencia registrada', regionCounts[0]));
   const communes = options.communes
     .filter(c => (filters.region === 'all' || c.region === filters.region) && (filters.commune === 'all' || c.id === filters.commune) && (!communeSet || communeSet.has(Number(c.id))))
