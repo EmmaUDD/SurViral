@@ -151,6 +151,21 @@ test('Archivos GRD generados: hospitalizaciones coinciden con el notebook de lim
     assert.ok(rate != null && Math.abs(rate - expected) < 0.05, `${year}: ${rate} ≠ ${expected}`);
   }
   for (const region of options.regions) assertPartitions(summarizeReal({ ...full, region: region.id }, data, options));
+  // Grupos de diagnóstico (sección «Grupos de diagnóstico» del notebook): neumonía J12–J18 en 2019.
+  const y2019f = { ...defaultFilters, startDate: '2019-01-01', endDate: '2019-12-31' };
+  assert.equal(y2019.diagnoses.find(d => d.id === 'grupo-neumonia')?.value, 33_971);
+  assert.equal(summarizeReal({ ...y2019f, diagnosis: 'grupo-neumonia' }, data, options).indicators.hospitalizations.value, 33_971);
+  assert.equal(sum(y2019.diagnosisCodes ?? []), y2019.indicators.hospitalizations.value);
+  // Tasa regional ajustada por edad = tasas_region.csv del notebook (Aysén y Metropolitana, 2019).
+  for (const [region, expected] of [['11', 1063.8], ['13', 653.4]] as const) {
+    const adjusted = y2019.territories.find(t => t.id === region)?.adjustedRate;
+    assert.ok(adjusted != null && Math.abs(adjusted - expected) < 0.05, `${region}: ${adjusted} ≠ ${expected}`);
+  }
+  // La tasa mensual suma la anual cuando el año está completo.
+  assert.ok(Math.abs(y2019.monthly.reduce((t, p) => t + (p.rate ?? 0), 0) - y2019.indicators.rate!.value!) < 1e-6);
+  // Las comunas reconcilian con su región.
+  const santiago = summarizeReal({ ...y2019f, region: '13' }, data, options);
+  assert.equal(santiago.communes.reduce((t, c) => t + (c.rateEvents ?? 0), 0), santiago.meta.rate?.cohortEvents);
   const logistic = logisticFromSeries(defaultFilters, 1, f => summarizeReal(f, data, options).monthly, 'real');
   assert.equal(logistic.mode, 'real');
 });

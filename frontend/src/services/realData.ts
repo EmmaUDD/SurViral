@@ -10,7 +10,9 @@ export interface GrdMeta {
   maxDate: string;
   maxStay: number;
   ageLabels: string[];
-  diagnoses: Option[];
+  /** Códigos CIE-10 de 3 caracteres; group = índice en diagnosisGroups. */
+  diagnoses: (Option & { group?: number })[];
+  diagnosisGroups?: Option[];
   source: string;
   /** Egresos no exportados por no ser hospitalización (CMA, hospitalización diurna). */
   excludedTotal?: number;
@@ -61,7 +63,8 @@ export function realFilterOptions(meta: GrdMeta): FilterOptions {
   return {
     minDate: meta.minDate, maxDate: meta.maxDate, years, regions, communes,
     ages: [...ageBands.map(({ id, label }) => ({ id, label })), { id: 'unknown', label: 'Edad desconocida' }],
-    sexes, diagnoses: meta.diagnoses,
+    // Filtro: primero los grupos de diagnóstico, luego cada código.
+    sexes, diagnoses: [...(meta.diagnosisGroups ?? []), ...meta.diagnoses.map(({ id, label }) => ({ id, label }))],
   };
 }
 

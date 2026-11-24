@@ -15,6 +15,8 @@ y hospitalización diurna, que quedan contadas en grd-meta.json.
 No se exportan identificadores de paciente, hospital ni fechas exactas de nacimiento.
 """
 import json
+import re
+import unicodedata
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -39,7 +41,7 @@ SIN_DATO_U16 = 65535
 def main():
     todos = pd.read_parquet(ORIGEN, columns=['CUT', 'COD_REGION', 'SEXO', 'TRAMO_EDAD', 'FECHA_INGRESO', 'FECHA_ALTA',
                                              'DIAGNOSTICO1', 'DIAGNOSTICO1_DESC', 'TIPO_ACTIVIDAD', 'ES_HOSPITALIZACION',
-                                             'HOSPITAL_EN_COHORTE'])
+                                             'HOSPITAL_EN_COHORTE', 'GRUPO_DIAGNOSTICO'])
     excluidos = todos.loc[~todos['ES_HOSPITALIZACION'], 'TIPO_ACTIVIDAD'].value_counts()
     df = todos.loc[todos['ES_HOSPITALIZACION']].reset_index(drop=True)
     n = len(df)
@@ -70,6 +72,19 @@ def main():
     diag = df['DIAGNOSTICO1'].map({c: i for i, c in enumerate(diagnosticos.index)})
     assert diag.notna().all()
 
+    # Grupos de diagnóstico (GRUPO_DIAGNOSTICO del notebook), en orden del primer código de cada grupo
+    grupo_de_codigo = df.groupby('DIAGNOSTICO1')['GRUPO_DIAGNOSTICO'].agg(lambda g: g.unique().tolist())
+    assert (grupo_de_codigo.map(len) == 1).all(), 'Un código con más de un grupo'
+    grupo_de_codigo = grupo_de_codigo.map(lambda g: g[0])
+    grupos = list(dict.fromkeys(grupo_de_codigo.sort_index()))
+    otros = [g for g in grupos if g.startswith('Otras enfermedades respiratorias')]
+    grupos = [g for g in grupos if g not in otros] + otros
+    def slug(texto):
+        base = ''.join(c for c in unicodedata.normalize('NFD', texto.split('(')[0].lower()) if unicodedata.category(c) != 'Mn')
+        return 'grupo-' + re.sub(r'[^a-z0-9]+', '-', base).strip('-')
+    ids_grupo = [slug(g) for g in grupos]
+    assert len(set(ids_grupo)) == len(ids_grupo), ids_grupo
+
     cohorte = df['HOSPITAL_EN_COHORTE'].astype(np.uint8)
 
     columnas = [(dia, np.uint16), (estadia, np.uint16), (comuna, np.uint16),
@@ -98,8 +113,9 @@ def main():
         'maxDate': fecha_max,
         'maxStay': int(estadia[estadia != SIN_DATO_U16].max()),
         'ageLabels': TRAMOS,
-        'diagnoses': [{'id': c, 'label': f'{c} · {d}' if isinstance(d, str) else c}
+        'diagnoses': [{'id': c, 'label': f'{c} · {d}' if isinstance(d, str) else c, 'group': grupos.index(grupo_de_codigo[c])}
                       for c, d in diagnosticos.items()],
+        'diagnosisGroups': [{'id': i, 'label': g} for i, g in zip(ids_grupo, grupos)],
         'source': 'GRD público 2019–2024, hospitalizaciones con diagnóstico principal J00–J99',
         'excludedTotal': int(excluidos.sum()),
         'excludedActivities': {k: int(v) for k, v in excluidos.items()},

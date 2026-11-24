@@ -7,6 +7,7 @@ import { MonthlyChart } from '../charts/MonthlyChart.tsx';
 import { DiagnosisBars } from '../charts/DiagnosisBars.tsx';
 import { ChileMap } from '../charts/ChileMap.tsx';
 import { DistributionChart } from '../charts/DistributionChart.tsx';
+import { RateBars } from '../charts/RateBars.tsx';
 import { dateLabel, number } from '../utils/format.ts';
 import { SIMULATED } from '../services/mode.ts';
 
@@ -28,7 +29,7 @@ export function OverviewScreen({ data, reset, methodology, regions, onRegion }: 
       <p className="interpretation"><span>Cómo leerlo</span>Cada punto cuenta eventos con egreso en ese mes, dentro de los filtros aplicados. {SIMULATED ? 'Describe la distribución de esta simulación; no representa incidencia ni una tendencia comprobada en Chile.' : 'Son conteos de egresos, no de personas: no representan incidencia ni tasas poblacionales.'}</p>
     </Panel>
     <div className="lower-grid">
-      <div className="context-stack"><Panel title="Patologías respiratorias" subtitle="¿Qué grupos diagnósticos concentran los eventos seleccionados?" action={<Layers3 size={19} className="muted-icon" aria-hidden="true" />}>
+      <div className="context-stack"><Panel title="Patologías respiratorias" subtitle="¿Qué enfermedades concentran las hospitalizaciones seleccionadas? Grupos según bloques CIE-10." action={<Layers3 size={19} className="muted-icon" aria-hidden="true" />}>
         <DiagnosisBars values={data.diagnoses} total={meta.respiratoryTotal} />
       </Panel>
         <Panel title="Contexto de la consulta" subtitle="Qué representan estas cifras">
@@ -39,7 +40,7 @@ export function OverviewScreen({ data, reset, methodology, regions, onRegion }: 
       </div>
       <Panel title="Distribución territorial" subtitle="Selecciona una región para explorar sus hospitalizaciones."><ChileMap values={data.territories} regions={regions} selected={meta.appliedFilters.region} onSelect={onRegion}/></Panel>
     </div>
-    <div className="explore-grid overview-demographics"><Panel title="Distribución por edad" subtitle="Hospitalizaciones por grupo etario."><DistributionChart values={data.demographics.age}/></Panel><Panel title="Distribución por sexo" subtitle={SIMULATED ? 'Categorías registradas en los eventos simulados.' : 'Categorías registradas en los egresos.'}><DistributionChart values={data.demographics.sex} color="#2876A8"/></Panel></div>
+    <div className="explore-grid overview-demographics">{data.demographics.age.some(a => a.rate != null) ? <Panel title="Tasa por tramo de edad" subtitle="Hospitalizaciones anuales por 100.000 beneficiarios FONASA de cada tramo."><RateBars label="Tramo de edad" values={data.demographics.age} sort={false} /></Panel> : <Panel title="Distribución por edad" subtitle="Hospitalizaciones por grupo etario."><DistributionChart values={data.demographics.age}/></Panel>}<Panel title="Distribución por sexo" subtitle={SIMULATED ? 'Categorías registradas en los eventos simulados.' : 'Categorías registradas en los egresos.'}><DistributionChart values={data.demographics.sex} color="#2876A8"/></Panel></div>
     <div className="source-footer"><ShieldCheck size={17} />{SIMULATED ? <p><strong>Demostración reproducible.</strong> Todos los paneles parten de la misma fuente ficticia. Definiciones, cobertura y clasificación diagnóstica reales pendientes de validación con el equipo.</p> : <p><strong>{meta.source}.</strong> Todos los paneles parten del mismo archivo ({meta.version}). {meta.warnings.join(' ')}</p>}</div>
   </div>;
 }

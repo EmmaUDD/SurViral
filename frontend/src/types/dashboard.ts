@@ -35,6 +35,8 @@ export interface TimePoint {
   value: number | null;
   status: 'available' | 'unavailable';
   partial: boolean;
+  /** Hospitalizaciones de la cohorte por 100.000 beneficiarios en el período (no anualizada). */
+  rate?: number | null;
 }
 export interface CategoryValue {
   id: string;
@@ -43,6 +45,10 @@ export interface CategoryValue {
   percent: number | null;
   /** Hospitalizaciones (cohorte) por 100.000 beneficiarios por año; ausente sin datos de población. */
   rate?: number | null;
+  /** Hospitalizaciones de la cohorte en el numerador de la tasa (estabilidad). */
+  rateEvents?: number;
+  /** Tasa ajustada por edad (método directo); solo sin filtro de edad. */
+  adjustedRate?: number | null;
 }
 export interface SourceMetadata {
   mode: 'simulated' | 'real';
@@ -69,6 +75,8 @@ export interface Overview {
   indicators: { hospitalizations: Measure; proportion: Measure; medianStay: Measure; rate?: Measure };
   monthly: TimePoint[];
   diagnoses: CategoryValue[];
+  /** Detalle por código CIE-10 cuando diagnoses viene agrupado. */
+  diagnosisCodes?: CategoryValue[];
   territories: CategoryValue[];
   communes: CategoryValue[];
   regionalMonthly: { id: string; label: string; points: TimePoint[] }[];
