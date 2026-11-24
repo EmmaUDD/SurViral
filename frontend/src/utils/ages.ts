@@ -1,9 +1,12 @@
 import type { AgeGroup } from '../types/dashboard.ts';
 
-/** Tramos observados en TRAMO_EDAD de GRD 2025; contrato provisional. */
-export const ageBands: { id: AgeGroup; label: string; min: number; max: number }[] =
-  Array.from({ length: 22 }, (_, index) => {
-    const min = index * 5;
-    const max = min + 4;
-    return { id: `${min}to${max}` as AgeGroup, label: `${min}–${max} años`, min, max };
-  });
+/** Tramos del proyecto (TRAMO_EDAD en Procesamiento/limpieza_basica_GRD.ipynb). Orden = código del binario real. */
+export const ageBands: { id: Exclude<AgeGroup, 'all' | 'unknown'>; label: string; min: number; max: number }[] = [
+  { id: '0to4', label: 'Infancia (0-4)', min: 0, max: 4 },
+  { id: '5to12', label: 'Niñez (5-12)', min: 5, max: 12 },
+  { id: '13to17', label: 'Adolescencia (13-17)', min: 13, max: 17 },
+  { id: '18to29', label: 'Adultos jóvenes (18-29)', min: 18, max: 29 },
+  { id: '30to49', label: 'Adultos (30-49)', min: 30, max: 49 },
+  { id: '50to64', label: 'Adultos maduros (50-64)', min: 50, max: 64 },
+  { id: '65plus', label: 'Adultos mayores (65+)', min: 65, max: 109 },
+];

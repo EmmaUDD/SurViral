@@ -1,5 +1,6 @@
 import { BookOpen, Download, FileSpreadsheet, FileText, Info } from 'lucide-react';
 import { Panel } from '../components/Panel.tsx';
+import { SIMULATED } from '../services/mode.ts';
 
 const documents = [
   { name: 'CIE-9', type: 'Hoja de cálculo', spreadsheet: true },
@@ -8,13 +9,22 @@ const documents = [
   { name: 'Tablas maestras bases GRD', type: 'Hoja de cálculo', spreadsheet: true },
 ];
 
+function RealDefinitions() {
+  return <><Panel title="Definiciones" subtitle="Datos GRD 2019–2024 procesados en Procesamiento/limpieza_basica_GRD.ipynb" action={<BookOpen size={22} />}>
+    <dl className="definitions"><div><dt>Hospitalizaciones respiratorias</dt><dd>Egresos hospitalarios con diagnóstico principal CIE-10 del capítulo J (J00–J99) compatibles con los filtros. No son pacientes únicos ni nuevos casos de enfermedad.</dd></div><div><dt>Proporción entre egresos</dt><dd>No calculable: las bases del proyecto ya vienen filtradas a egresos respiratorios, por lo que no se dispone del total de egresos como denominador.</dd></div><div><dt>Estancia mediana</dt><dd>Mediana de los días entre fecha de ingreso y fecha de alta de los egresos seleccionados. Una estancia de cero días (alta el mismo día) es válida.</dd></div><div><dt>Tramos de edad</dt><dd>Edad en años cumplidos al ingreso, en siete tramos: infancia (0–4), niñez (5–12), adolescencia (13–17), adultos jóvenes (18–29), adultos (30–49), adultos maduros (50–64) y adultos mayores (65+). Edades fuera de 0–109 quedan como desconocidas.</dd></div><div><dt>Fechas y territorio</dt><dd>Rango inclusivo según fecha de alta: cada archivo GRD anual contiene las altas de ese año, por lo que los 72 meses quedan completos. El territorio es la comuna de residencia del paciente, no la del hospital.</dd></div><div><dt>Diagnósticos</dt><dd>Categoría CIE-10 de tres caracteres del diagnóstico principal. El ranking muestra los diez más frecuentes y agrupa el resto en «Otros».</dd></div></dl>
+  </Panel><Panel title="Cobertura y fuentes" subtitle="Bases GRD públicas 2019–2024 · diagnóstico principal J00–J99">
+    <p>Proceso: <code>limpieza_basica_GRD.ipynb</code> lee los archivos <code>GRD_PUBLICO_AAAA_ER.txt</code>, elimina duplicados exactos y posibles duplicados, calcula edad y tramo, y exporta <code>grd_respiratorio_2019_2024.parquet</code>. Luego <code>npm run prepare-data</code> lo convierte en los archivos que lee el navegador, sin identificadores de pacientes.</p><p>Las regiones y comunas provienen de <code>catalogo_comuna_region.csv</code>. Los egresos sin comuna de residencia se cuentan en los totales, pero no en el mapa. No se incorpora 2025.</p><p>Ambiente y vacunación no se han integrado. No se calculan tasas poblacionales, mortalidad ni correlaciones en esta etapa.</p>
+    <div className="inline-notice"><Info size={19} /><p>Los gráficos muestran conteos de egresos, sin ajuste por población: diferencias entre regiones o grupos de edad reflejan también su tamaño.</p></div>
+  </Panel></>;
+}
+
 export function MethodologyScreen() {
-  return <div className="methodology-content"><Panel title="Definiciones de esta demostración" subtitle="Contratos provisionales para validar con el equipo de datos" action={<BookOpen size={22} />}>
+  return <div className="methodology-content">{!SIMULATED ? <RealDefinitions /> : <><Panel title="Definiciones de esta demostración" subtitle="Contratos provisionales para validar con el equipo de datos" action={<BookOpen size={22} />}>
     <dl className="definitions"><div><dt>Hospitalizaciones respiratorias</dt><dd>Número de eventos ficticios marcados como respiratorios y compatibles con los filtros. No son pacientes únicos ni nuevos casos de enfermedad.</dd></div><div><dt>Proporción entre egresos</dt><dd>Eventos respiratorios seleccionados / todos los egresos del mismo período, territorio, edad y sexo × 100. Diagnóstico solo filtra el numerador. Con denominador cero no se calcula un porcentaje.</dd></div><div><dt>Estancia mediana</dt><dd>Mediana de las estancias válidas de los eventos respiratorios seleccionados, en días. Se conserva una estancia válida de cero días y se informa cuántos valores están ausentes.</dd></div><div><dt>Tramos de edad</dt><dd>Grupos de cinco años, desde 0–4 hasta 105–109, y edad desconocida, siguiendo las categorías observadas en GRD 2025. Los datos del mockup siguen siendo ficticios de 2019–2024; la armonización real está en preparación.</dd></div><div><dt>Fechas y territorio</dt><dd>Rango inclusivo basado provisionalmente en fecha de egreso y territorio de atención simulado. La ubicación del hospital no determina la residencia del paciente. La asignación real por código de hospital requiere un catálogo validado.</dd></div></dl>
   </Panel><Panel title="Cobertura y fuentes" subtitle="Fuente demo-3-tramos-2025 · versión de la simulación: 4 de noviembre de 2026">
     <p>Fuente: conjunto determinista creado dentro del frontend, sin registros personales reales. Cubre de enero de 2019 a diciembre de 2024 y contiene 16 regiones y 346 comunas como categorías de demostración. Los eventos se simulan por comuna; no representan registros reales.</p><p>La disponibilidad real de cada año GRD permanece pendiente de validación. No se incorpora 2025. Los grupos diagnósticos son etiquetas didácticas, no una clasificación CIE validada.</p><p>Ambiente y vacunación no se han integrado. No se calculan tasas poblacionales, mortalidad ni correlaciones en esta primera etapa.</p>
     <div className="inline-notice"><Info size={19} /><p>Los patrones observados son ficticios. La pantalla demuestra filtros y presentación, y no permite concluir nada sobre hospitalizaciones reales en Chile.</p></div>
-  </Panel><Panel title="Documentos y bases de referencia" subtitle="Archivos previstos para consulta y descarga" action={<span className="panel-tag">Vista de demostración</span>}>
+  </Panel></>}<Panel title="Documentos y bases de referencia" subtitle="Archivos previstos para consulta y descarga" action={<span className="panel-tag">Vista de demostración</span>}>
     <p id="documents-download-note" className="fine-print">Las descargas se habilitarán cuando se incorporen los archivos. Estos documentos todavía no alimentan los gráficos de la demostración.</p>
     <ul className="source-documents">{documents.map(document => {
       const Icon = document.spreadsheet ? FileSpreadsheet : FileText;

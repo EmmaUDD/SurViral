@@ -1,6 +1,7 @@
 import { ageBands } from '../utils/ages.ts';
 import type { AgeGroup, CategoryValue, Filters, Measure, Overview, TimePoint } from '../types/dashboard.ts';
 import { events, filterOptions, type SimulatedEvent } from './data.ts';
+import { validateFiltersAgainst } from '../services/catalog.ts';
 
 export function matchesAge(age: number | null, group: AgeGroup): boolean {
   if (group === 'all') return true;
@@ -11,19 +12,7 @@ export function matchesAge(age: number | null, group: AgeGroup): boolean {
 }
 
 export function validateFilters(f: Filters): void {
-  for (const date of [f.startDate, f.endDate]) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date) throw new Error('Selecciona fechas válidas.');
-  }
-  if (f.startDate > f.endDate) throw new Error('La fecha inicial no puede ser posterior a la fecha final.');
-  if (f.startDate < filterOptions.minDate || f.endDate > filterOptions.maxDate) throw new Error('La cobertura simulada abarca del 1 de enero de 2019 al 31 de diciembre de 2024.');
-  if (f.region !== 'all' && !filterOptions.regions.some(o => o.id === f.region)) throw new Error('Territorio no disponible.');
-  if (f.commune !== 'all') {
-    const commune = filterOptions.communes.find(c => c.id === f.commune);
-    if (!commune || commune.region !== f.region) throw new Error('La comuna no corresponde a la región seleccionada.');
-  }
-  if (f.diagnosis !== 'all' && !filterOptions.diagnoses.some(o => o.id === f.diagnosis)) throw new Error('Diagnóstico no disponible.');
-  if (f.age !== 'all' && !filterOptions.ages.some(o => o.id === f.age)) throw new Error('Grupo etario no disponible.');
-  if (f.sex !== 'all' && !filterOptions.sexes.some(o => o.id === f.sex)) throw new Error('Sexo no disponible.');
+  validateFiltersAgainst(f, filterOptions);
 }
 
 function measure(value: number | null, unit: Measure['unit'], validCount: number, reason?: Measure['reason']): Measure {

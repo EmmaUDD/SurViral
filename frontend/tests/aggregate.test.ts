@@ -112,16 +112,18 @@ test('Catálogo comunal, coherencia de región/comuna y reconciliación con los 
 });
 
 
-test('Los tramos quinquenales cubren sin solapamientos los límites de edad 2025', () => {
+test('Los tramos del proyecto cubren sin solapamientos las edades 0-109 (BINS_TRAMO del notebook)', () => {
+  const bins = [0, 5, 13, 18, 30, 50, 65, 110];
   for (let age = 0; age <= 109; age++) {
     const groups = filterOptions.ages.filter(g => matchesAge(age, g.id as typeof defaultFilters.age));
     assert.equal(groups.length, 1, `Edad ${age}`);
-    assert.equal(groups[0].id, `${Math.floor(age / 5) * 5}to${Math.floor(age / 5) * 5 + 4}`);
+    assert.equal(groups[0].id, filterOptions.ages[bins.findIndex((edge, i) => age >= edge && age < bins[i + 1])].id, `Edad ${age}`);
   }
   assert.equal(matchesAge(null, 'unknown'), true);
   assert.equal(matchesAge(null, '0to4'), false);
-  assert.equal(matchesAge(19, '15to19'), true);
-  assert.equal(matchesAge(20, '15to19'), false);
+  assert.equal(matchesAge(17, '13to17'), true);
+  assert.equal(matchesAge(18, '13to17'), false);
+  assert.equal(matchesAge(109, '65plus'), true);
   const total = filterOptions.ages.reduce((sum, group) => sum + summarize({ ...defaultFilters, age: group.id as typeof defaultFilters.age }).meta.respiratoryTotal, 0);
   assert.equal(total, summarize(defaultFilters).meta.respiratoryTotal);
 });

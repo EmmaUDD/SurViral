@@ -2,6 +2,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { Download, Table2 } from 'lucide-react';
 import type { TimePoint } from '../types/dashboard.ts';
 import { downloadCsv, monthLabel, number } from '../utils/format.ts';
+import { SIMULATED } from '../services/mode.ts';
 
 export function MonthlyChart({ points }: { points: TimePoint[] }) {
   const data = points.map(p => ({ ...p, label: monthLabel(p.period), fullLabel: monthLabel(p.period, true) }));
@@ -18,7 +19,7 @@ export function MonthlyChart({ points }: { points: TimePoint[] }) {
         </LineChart>
       </ResponsiveContainer>
     </div>
-    <div className="chart-bottom"><span><i className="line-swatch" />Hospitalizaciones respiratorias · datos ficticios</span>{points.some(p => p.partial) && <span className="partial-note">El rango incluye meses parciales</span>}</div>
-    <div className="chart-tools"><details><summary><Table2 size={15} />Ver datos del gráfico</summary><div className="table-wrap"><table><caption>Serie mensual simulada. Mes del egreso; un mes parcial solo incluye los días seleccionados.</caption><thead><tr><th>Mes</th><th>Eventos</th><th>Período</th></tr></thead><tbody>{points.map(p => <tr key={p.period}><th scope="row">{monthLabel(p.period, true)}</th><td>{p.value === null ? 'No disponible' : number(p.value)}</td><td>{p.partial ? 'Parcial' : 'Completo'}</td></tr>)}</tbody></table></div></details><button className="text-button" onClick={() => downloadCsv([['DATOS SIMULADOS — no son resultados del proyecto'], ['Mes de egreso', 'Eventos', 'Período'], ...points.map(p => [p.period, p.value === null ? 'No disponible' : String(p.value), p.partial ? 'Parcial' : 'Completo'])], 'surviral-serie-SIMULADA.csv')}><Download size={14} />Descargar serie</button></div>
+    <div className="chart-bottom"><span><i className="line-swatch" />Hospitalizaciones respiratorias{SIMULATED ? ' · datos ficticios' : ''}</span>{points.some(p => p.partial) && <span className="partial-note">El rango incluye meses parciales</span>}</div>
+    <div className="chart-tools"><details><summary><Table2 size={15} />Ver datos del gráfico</summary><div className="table-wrap"><table><caption>Serie mensual{SIMULATED ? ' simulada' : ''}. Mes del egreso; un mes parcial solo incluye los días seleccionados.</caption><thead><tr><th>Mes</th><th>Eventos</th><th>Período</th></tr></thead><tbody>{points.map(p => <tr key={p.period}><th scope="row">{monthLabel(p.period, true)}</th><td>{p.value === null ? 'No disponible' : number(p.value)}</td><td>{p.partial ? 'Parcial' : 'Completo'}</td></tr>)}</tbody></table></div></details><button className="text-button" onClick={() => downloadCsv([[SIMULATED ? 'DATOS SIMULADOS — no son resultados del proyecto' : 'GRD 2019–2024 · egresos con diagnóstico principal J00–J99'], ['Mes de egreso', 'Eventos', 'Período'], ...points.map(p => [p.period, p.value === null ? 'No disponible' : String(p.value), p.partial ? 'Parcial' : 'Completo'])], SIMULATED ? 'surviral-serie-SIMULADA.csv' : 'surviral-serie-GRD.csv')}><Download size={14} />Descargar serie</button></div>
   </>;
 }

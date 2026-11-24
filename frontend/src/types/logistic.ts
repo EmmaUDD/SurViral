@@ -11,7 +11,7 @@ export interface LogisticPoint {
 }
 /** Propuesta de contrato; no es un acuerdo aprobado por el backend. */
 export type LogisticPreview = {
-  mode: 'simulated';
+  mode: 'simulated' | 'real';
   filters: Filters;
   cutoff: string;
   horizon: number;

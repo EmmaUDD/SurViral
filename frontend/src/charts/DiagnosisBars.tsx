@@ -6,6 +6,6 @@ export function DiagnosisBars({ values, total, label = 'Grupo diagnóstico' }: {
   return <>
     <div className="ranking-columns" aria-hidden="true"><span>{label}</span><span>Eventos / % del total</span></div>
     <ol className="diagnosis-bars">{values.map((d, i) => <li key={d.id}><div className="diagnosis-row"><span className="rank-index">{String(i + 1).padStart(2, '0')}</span><span className="diagnosis-name">{d.label}</span><span className="diagnosis-number">{number(d.value)} <span>{d.percent === null ? '—' : `${number(d.percent, 1)}%`}</span></span></div><div className="bar-track" aria-hidden="true"><div style={{ width: `${100 * d.value / maximum}%` }} /></div></li>)}</ol>
-    <p className="chart-reading">Se muestran todos los grupos de la selección, incluidos los no especificados. Suma de eventos: <strong>{number(total)}</strong>.</p>
+    <p className="chart-reading">Se incluyen todos los eventos de la selección; los grupos menos frecuentes pueden agruparse en «Otros». Suma de eventos: <strong>{number(total)}</strong>.</p>
   </>;
 }

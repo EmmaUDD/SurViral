@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Activity, ArrowUpRight, BookOpen, CalendarDays, CircleHelp, FlaskConical, LayoutDashboard, Leaf, MapPinned, Menu, Users, X } from 'lucide-react';
+import { Activity, ArrowUpRight, BookOpen, CalendarDays, CircleHelp, Database, FlaskConical, LayoutDashboard, Leaf, MapPinned, Menu, Users, X } from 'lucide-react';
 import type { FilterOptions, Filters, Overview } from '../types/dashboard.ts';
 import { dashboardService } from '../services/index.ts';
 import { FilterBar } from '../components/FilterBar.tsx';
@@ -10,6 +10,7 @@ import { plannedViews, type PlannedView } from '../screens/PlannedScreen.tsx';
 import { ExploreScreen } from '../screens/ExploreScreen.tsx';
 import { EnvironmentScreen } from '../screens/EnvironmentScreen.tsx';
 import { defaultFilters } from './defaults.ts';
+import { SIMULATED } from '../services/mode.ts';
 
 type View = 'overview' | 'methodology' | PlannedView;
 type Request = { status: 'loading' } | { status: 'error'; message: string } | { status: 'success'; data: Overview };
@@ -66,7 +67,7 @@ export default function App() {
       <div className="sidebar-bottom"><div className="sidebar-note"><span className="note-dot" />Prototipo académico<p>Hospitalizaciones por enfermedades respiratorias en Chile.</p></div><span className="university">INGENIERÍA · UDD <span>2026</span></span></div>
     </aside>
     <div className="workspace">
-      <header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu" aria-label={menuOpen ? 'Cerrar navegación' : 'Abrir navegación'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button><span className="breadcrumb">Surviral<span>/</span><strong>Explorador respiratorio</strong></span></div><div className="topbar-right"><span className="demo-badge"><FlaskConical size={14} />Datos simulados</span><button className="icon-button help-button" aria-label="Consultar metodología y fuentes" onClick={() => go('methodology')}><CircleHelp size={20} /></button></div></header>
+      <header className="topbar"><div className="topbar-left"><button className="icon-button mobile-menu" aria-label={menuOpen ? 'Cerrar navegación' : 'Abrir navegación'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={22} /> : <Menu size={22} />}</button><span className="breadcrumb">Surviral<span>/</span><strong>Explorador respiratorio</strong></span></div><div className="topbar-right">{SIMULATED ? <span className="demo-badge"><FlaskConical size={14} />Datos simulados</span> : <span className="demo-badge"><Database size={14} />Datos GRD 2019–2024</span>}<button className="icon-button help-button" aria-label="Consultar metodología y fuentes" onClick={() => go('methodology')}><CircleHelp size={20} /></button></div></header>
       <main id="main-content" className="main-content">
         <div className="page-heading"><div><span className="eyebrow">HOSPITALIZACIONES RESPIRATORIAS EN CHILE</span><h1>{title}</h1><p>{question}</p></div><button className="button heading-method" onClick={() => go(view === 'methodology' ? 'overview' : 'methodology')}>{view === 'methodology' ? 'Volver al panorama' : 'Acerca de los datos'}<ArrowUpRight size={16} /></button></div>
         <div className="demo-notice"><FlaskConical size={18} /><p><strong>Modelo en desarrollo.</strong></p></div>
@@ -74,7 +75,7 @@ export default function App() {
           {options && <FilterBar filters={filters} options={options} onChange={setFilters} reset={reset} />}
           {optionsError ? <ErrorState message={optionsError} retry={() => setAttempt(attempt + 1)} /> : request.status === 'loading' || !options ? <LoadingState /> : request.status === 'error' ? <ErrorState message={request.message} retry={() => setAttempt(attempt + 1)} /> : view === 'overview' ? <OverviewScreen data={request.data} reset={reset} methodology={() => go('methodology')} regions={options.regions} onRegion={region => setFilters(f => ({...f,region,commune: 'all'}))} /> : <ExploreScreen horizon={forecastHorizon} onHorizon={setForecastHorizon} view={view} data={request.data} options={options} onRegion={region => setFilters(f=>({...f,region,commune: 'all'}))} reset={reset}/>}
         </> : view === 'methodology' ? <MethodologyScreen /> : <EnvironmentScreen />}
-        <footer className="page-footer"><span>Surviral · Análisis de Datos e Inferencia Estadística</span><span>2019–2024 · cobertura de demostración</span></footer>
+        <footer className="page-footer"><span>Surviral · Análisis de Datos e Inferencia Estadística</span><span>2019–2024 · {SIMULATED ? 'cobertura de demostración' : 'GRD público, egresos respiratorios'}</span></footer>
       </main>
     </div>
   </div>;

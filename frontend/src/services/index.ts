@@ -1,6 +1,13 @@
 import type { DashboardService } from '../types/dashboard.ts';
-import { mockService } from './mockService.ts';
+import { realService } from './realService.ts';
+import { SIMULATED } from './mode.ts';
 
-// Punto único de sustitución. Una implementación HTTP futura deberá satisfacer
-// DashboardService y validar las respuestas antes de entregarlas a las pantallas.
-export const dashboardService: DashboardService = mockService;
+// Punto único de sustitución: datos GRD reales (public/data) o, con VITE_DATA_MODE=simulated,
+// la demostración. El servicio simulado se carga solo cuando se usa: genera sus eventos al importarse.
+const service = (): Promise<DashboardService> => SIMULATED ? import('./mockService.ts').then(m => m.mockService) : Promise.resolve(realService);
+
+export const dashboardService: DashboardService = {
+  getFilterOptions: signal => service().then(s => s.getFilterOptions(signal)),
+  getOverview: (filters, signal) => service().then(s => s.getOverview(filters, signal)),
+  getLogisticPreview: (filters, horizon, signal) => service().then(s => s.getLogisticPreview(filters, horizon, signal)),
+};

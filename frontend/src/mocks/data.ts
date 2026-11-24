@@ -1,7 +1,7 @@
 import { ageBands } from '../utils/ages.ts';
 import type { FilterOptions, Option, Sex } from '../types/dashboard.ts';
-import communeCatalog from '../assets/communes.json' with { type: 'json' };
-export const communes = communeCatalog;
+import { communes, regions, sexes } from '../services/catalog.ts';
+export { communes, regions };
 
 export interface SimulatedEvent {
   id: string;
@@ -14,14 +14,6 @@ export interface SimulatedEvent {
   diagnosis: string;
   stayDays: number | null;
 }
-
-export const regions: Option[] = [
-  ['15', 'Arica y Parinacota'], ['01', 'Tarapacá'], ['02', 'Antofagasta'],
-  ['03', 'Atacama'], ['04', 'Coquimbo'], ['05', 'Valparaíso'],
-  ['13', 'Metropolitana'], ['06', 'O’Higgins'], ['07', 'Maule'],
-  ['16', 'Ñuble'], ['08', 'Biobío'], ['09', 'La Araucanía'],
-  ['14', 'Los Ríos'], ['10', 'Los Lagos'], ['11', 'Aysén'], ['12', 'Magallanes'],
-].map(([id, label]) => ({ id, label }));
 
 export const diagnoses: Option[] = [
   { id: 'pneumonia', label: 'Neumonía' },
@@ -36,7 +28,7 @@ export const filterOptions: FilterOptions = {
   minDate: '2019-01-01', maxDate: '2024-12-31', years: [2019, 2020, 2021, 2022, 2023, 2024],
   regions, communes,
   ages: [...ageBands.map(({ id, label }) => ({ id, label })), { id: 'unknown', label: 'Edad desconocida' }],
-  sexes: [{ id: 'female', label: 'Femenino' }, { id: 'male', label: 'Masculino' }, { id: 'unknown', label: 'Sexo desconocido' }],
+  sexes,
   diagnoses,
 };
 

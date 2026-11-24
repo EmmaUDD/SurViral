@@ -1,0 +1,274 @@
+{
+ "rows": 410038,
+ "baseDate": "2019-01-01",
+ "minDate": "2019-01-01",
+ "maxDate": "2024-12-31",
+ "maxStay": 2482,
+ "ageLabels": [
+  "Infancia (0-4)",
+  "Niñez (5-12)",
+  "Adolescencia (13-17)",
+  "Adultos jóvenes (18-29)",
+  "Adultos (30-49)",
+  "Adultos maduros (50-64)",
+  "Adultos mayores (65+)"
+ ],
+ "diagnoses": [
+  {
+   "id": "J00",
+   "label": "J00 · Rinofaringitis aguda [resfriado común]"
+  },
+  {
+   "id": "J01",
+   "label": "J01 · Sinusitis aguda"
+  },
+  {
+   "id": "J02",
+   "label": "J02 · Faringitis aguda"
+  },
+  {
+   "id": "J03",
+   "label": "J03 · Amigdalitis aguda"
+  },
+  {
+   "id": "J04",
+   "label": "J04 · Laringitis y traqueítis agudas"
+  },
+  {
+   "id": "J05",
+   "label": "J05 · Laringitis obstructiva aguda [crup] y epiglotitis"
+  },
+  {
+   "id": "J06",
+   "label": "J06 · Infecciones agudas de las vías respiratorias superiores, de sitios múltiples o no especificados"
+  },
+  {
+   "id": "J09",
+   "label": "J09 · Influenza debida a ciertos virus de la influenza identificados"
+  },
+  {
+   "id": "J10",
+   "label": "J10 · Influenza debida a virus de la influenza identificado"
+  },
+  {
+   "id": "J11",
+   "label": "J11 · Influenza debida a virus no identificado"
+  },
+  {
+   "id": "J12",
+   "label": "J12 · Neumonía viral, no clasificada en otra parte"
+  },
+  {
+   "id": "J13",
+   "label": "J13 · Neumonía debida a Streptococcus pneumoniae"
+  },
+  {
+   "id": "J14",
+   "label": "J14 · Neumonía debida a Haemophilus influenzae"
+  },
+  {
+   "id": "J15",
+   "label": "J15 · Neumonía bacteriana, no clasificada en otra parte"
+  },
+  {
+   "id": "J16",
+   "label": "J16 · Neumonía debida a otros microorganismos infecciosos, no clasificados en otra parte"
+  },
+  {
+   "id": "J17",
+   "label": "J17 · Neumonía en enfermedades clasificadas en otra parte"
+  },
+  {
+   "id": "J18",
+   "label": "J18 · Neumonía, organismo no especificado"
+  },
+  {
+   "id": "J20",
+   "label": "J20 · Bronquitis aguda"
+  },
+  {
+   "id": "J21",
+   "label": "J21 · Bronquiolitis aguda"
+  },
+  {
+   "id": "J22",
+   "label": "J22 · Infección aguda no especificada de las vías respiratorias inferiores"
+  },
+  {
+   "id": "J30",
+   "label": "J30 · Rinitis alérgica y vasomotora"
+  },
+  {
+   "id": "J31",
+   "label": "J31 · Rinitis, rinofaringitis y faringitis crónicas"
+  },
+  {
+   "id": "J32",
+   "label": "J32 · Sinusitis crónica"
+  },
+  {
+   "id": "J33",
+   "label": "J33 · Pólipo nasal"
+  },
+  {
+   "id": "J34",
+   "label": "J34 · Otros trastornos de la nariz y de los senos paranasales"
+  },
+  {
+   "id": "J35",
+   "label": "J35 · Enfermedades crónicas de las amígdalas y de las adenoides"
+  },
+  {
+   "id": "J36",
+   "label": "J36 · Absceso periamigdalino"
+  },
+  {
+   "id": "J37",
+   "label": "J37 · Laringitis y laringotraqueítis crónicas"
+  },
+  {
+   "id": "J38",
+   "label": "J38 · Enfermedades de las cuerdas vocales y de la laringe, no clasificadas en otra parte"
+  },
+  {
+   "id": "J39",
+   "label": "J39 · Otras enfermedades de las vías respiratorias superiores"
+  },
+  {
+   "id": "J40",
+   "label": "J40 · Bronquitis, no especificada como aguda o crónica"
+  },
+  {
+   "id": "J41",
+   "label": "J41 · Bronquitis crónica simple y mucopurulenta"
+  },
+  {
+   "id": "J42",
+   "label": "J42 · Bronquitis crónica no especificada"
+  },
+  {
+   "id": "J43",
+   "label": "J43 · Enfisema"
+  },
+  {
+   "id": "J44",
+   "label": "J44 · Otras enfermedades pulmonares obstructivas crónicas"
+  },
+  {
+   "id": "J45",
+   "label": "J45 · Asma"
+  },
+  {
+   "id": "J46",
+   "label": "J46 · Estado asmático"
+  },
+  {
+   "id": "J47",
+   "label": "J47 · Bronquiectasia"
+  },
+  {
+   "id": "J60",
+   "label": "J60 · Neumoconiosis de los mineros del carbón"
+  },
+  {
+   "id": "J61",
+   "label": "J61 · Neumoconiosis debida al asbesto y a otras fibras minerales"
+  },
+  {
+   "id": "J62",
+   "label": "J62 · Neumoconiosis debida a polvo de sílice"
+  },
+  {
+   "id": "J63",
+   "label": "J63 · Neumoconiosis debida a otros polvos inorgánicos"
+  },
+  {
+   "id": "J64",
+   "label": "J64 · Neumoconiosis, no especificada"
+  },
+  {
+   "id": "J65",
+   "label": "J65 · Neumoconiosis asociada con tuberculosis"
+  },
+  {
+   "id": "J67",
+   "label": "J67 · Neumonitis debida a hipersensibilidad al polvo orgánico"
+  },
+  {
+   "id": "J68",
+   "label": "J68 · Afecciones respiratorias debidas a inhalación de gases, humos, vapores y sustancias químicas"
+  },
+  {
+   "id": "J69",
+   "label": "J69 · Neumonitis debida a sólidos y líquidos"
+  },
+  {
+   "id": "J70",
+   "label": "J70 · Afecciones respiratorias debidas a otros agentes externos"
+  },
+  {
+   "id": "J80",
+   "label": "J80 · Síndrome de dificultad respiratoria del adulto"
+  },
+  {
+   "id": "J81",
+   "label": "J81 · Edema pulmonar"
+  },
+  {
+   "id": "J82",
+   "label": "J82 · Eosinofilia pulmonar, no clasificada en otra parte"
+  },
+  {
+   "id": "J84",
+   "label": "J84 · Otras enfermedades pulmonares intersticiales"
+  },
+  {
+   "id": "J85",
+   "label": "J85 · Absceso del pulmón y del mediastino"
+  },
+  {
+   "id": "J86",
+   "label": "J86 · Piotórax"
+  },
+  {
+   "id": "J90",
+   "label": "J90 · Derrame pleural no clasificado en otra parte"
+  },
+  {
+   "id": "J91",
+   "label": "J91 · Derrame pleural en afecciones clasificadas en otra parte"
+  },
+  {
+   "id": "J92",
+   "label": "J92 · Paquipleuritis"
+  },
+  {
+   "id": "J93",
+   "label": "J93 · Neumotórax"
+  },
+  {
+   "id": "J94",
+   "label": "J94 · Otras afecciones de la pleura"
+  },
+  {
+   "id": "J95",
+   "label": "J95 · Trastornos del sistema respiratorio consecutivos a procedimientos, no clasificados en otra parte"
+  },
+  {
+   "id": "J96",
+   "label": "J96 · Insuficiencia respiratoria, no clasificada en otra parte"
+  },
+  {
+   "id": "J98",
+   "label": "J98 · Otros trastornos respiratorios"
+  },
+  {
+   "id": "J99",
+   "label": "J99 · Trastornos respiratorios en enfermedades clasificadas en otra parte"
+  }
+ ],
+ "source": "GRD público 2019–2024, egresos con diagnóstico principal J00–J99",
+ "sourceFile": "grd_respiratorio_2019_2024.parquet",
+ "sourceModified": "2026-11-23",
+ "generatedAt": "2026-11-23"
+}

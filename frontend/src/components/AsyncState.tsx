@@ -1,4 +1,5 @@
 import { AlertCircle, SearchX, RefreshCw } from 'lucide-react';
+import { SIMULATED } from '../services/mode.ts';
 
 export function LoadingState() {
   return <div aria-live="polite" role="status" aria-label="Cargando resultados" className="loading-state">
@@ -13,5 +14,5 @@ export function ErrorState({ message, retry }: { message: string; retry: () => v
 }
 
 export function EmptyState({ reset }: { reset: () => void }) {
-  return <div className="empty-inline" role="status"><SearchX size={24} /><div><h2>No hay hospitalizaciones respiratorias para esta selección</h2><p>El conteo es cero dentro de la cobertura simulada. Puedes ampliar las fechas o limpiar los filtros.</p></div><button className="button" onClick={reset}>Limpiar filtros</button></div>;
+  return <div className="empty-inline" role="status"><SearchX size={24} /><div><h2>No hay hospitalizaciones respiratorias para esta selección</h2><p>El conteo es cero dentro de la cobertura{SIMULATED ? ' simulada' : ' 2019–2024'}. Puedes ampliar las fechas o limpiar los filtros.</p></div><button className="button" onClick={reset}>Limpiar filtros</button></div>;
 }

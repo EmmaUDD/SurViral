@@ -1,6 +1,6 @@
 /** Contratos provisionales: requieren validación con el equipo de datos. */
 export type Sex = 'female' | 'male' | 'unknown';
-export type AgeGroup = 'all' | '0to4' | '5to9' | '10to14' | '15to19' | '20to24' | '25to29' | '30to34' | '35to39' | '40to44' | '45to49' | '50to54' | '55to59' | '60to64' | '65to69' | '70to74' | '75to79' | '80to84' | '85to89' | '90to94' | '95to99' | '100to104' | '105to109' | 'unknown';
+export type AgeGroup = 'all' | '0to4' | '5to12' | '13to17' | '18to29' | '30to49' | '50to64' | '65plus' | 'unknown';
 export interface Filters {
   startDate: string;
   endDate: string;
@@ -24,7 +24,7 @@ export interface FilterOptions {
 export interface Measure {
   value: number | null;
   status: 'available' | 'unavailable';
-  reason?: 'zero_denominator' | 'no_events' | 'missing_values';
+  reason?: 'zero_denominator' | 'no_events' | 'missing_values' | 'no_universe';
   unit: 'events' | 'percent' | 'days';
   validCount: number;
 }

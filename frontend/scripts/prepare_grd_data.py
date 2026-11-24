@@ -1,0 +1,97 @@
+"""Convierte el GRD limpio (parquet) en los archivos que lee el frontend.
+
+Uso (desde frontend/):  python scripts/prepare_grd_data.py
+Requiere pandas y pyarrow. Lee ../GRD_CIE_TM/GRD_limpio/grd_respiratorio_2019_2024.parquet
+(generado por Procesamiento/limpieza_basica_GRD.ipynb) y escribe en public/data/:
+
+  grd.bin        columnas codificadas como enteros, una tras otra (little-endian):
+                 day u16 | stay u16 | commune u16 | region u8 | age u8 | sex u8 | diag u8
+  grd-meta.json  cantidad de filas, diccionarios (tramos, diagnósticos) y cobertura.
+
+No se exportan identificadores de paciente, hospital ni fechas exactas de nacimiento.
+"""
+import json
+from datetime import date, datetime, timezone
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+RAIZ = Path(__file__).resolve().parents[2]
+ORIGEN = RAIZ / 'GRD_CIE_TM' / 'GRD_limpio' / 'grd_respiratorio_2019_2024.parquet'
+DESTINO = Path(__file__).resolve().parents[1] / 'public' / 'data'
+CATALOGO_COMUNAS = Path(__file__).resolve().parents[1] / 'src' / 'assets' / 'communes.json'
+
+FECHA_BASE = pd.Timestamp('2019-01-01')
+# Debe coincidir con ETIQUETAS_TRAMO del notebook y con src/utils/ages.ts.
+TRAMOS = ['Infancia (0-4)', 'Niñez (5-12)', 'Adolescencia (13-17)', 'Adultos jóvenes (18-29)',
+          'Adultos (30-49)', 'Adultos maduros (50-64)', 'Adultos mayores (65+)']
+SEXOS = {'MUJER': 0, 'HOMBRE': 1, 'DESCONOCIDO': 2}
+SIN_DATO_U8 = 255
+SIN_DATO_U16 = 65535
+
+
+def main():
+    df = pd.read_parquet(ORIGEN, columns=['CUT', 'COD_REGION', 'SEXO', 'TRAMO_EDAD', 'FECHA_INGRESO',
+                                          'FECHA_ALTA', 'DIAGNOSTICO1', 'DIAGNOSTICO1_DESC'])
+    n = len(df)
+
+    dia = (df['FECHA_ALTA'] - FECHA_BASE).dt.days
+    assert dia.between(0, SIN_DATO_U16 - 1).all(), 'FECHA_ALTA fuera de rango'
+
+    estadia = (df['FECHA_ALTA'] - df['FECHA_INGRESO']).dt.days
+    assert (estadia.dropna() >= 0).all(), 'Hay estadías negativas'
+    assert (estadia.dropna() < SIN_DATO_U16).all(), 'Estadía demasiado larga para u16'
+    estadia = estadia.fillna(SIN_DATO_U16)
+
+    comunas_validas = {c['id'] for c in json.loads(CATALOGO_COMUNAS.read_text(encoding='utf-8-sig'))}
+    faltantes = set(df['CUT'].dropna()) - comunas_validas
+    assert not faltantes, f'CUT ausentes en communes.json: {sorted(faltantes)}'
+    comuna = pd.to_numeric(df['CUT'], errors='raise').fillna(0)
+    region = pd.to_numeric(df['COD_REGION'], errors='raise').fillna(0)
+
+    desconocidos = set(df['TRAMO_EDAD'].dropna()) - set(TRAMOS) - {'DESCONOCIDO'}
+    assert not desconocidos, f'Tramos no esperados: {desconocidos}'
+    edad = df['TRAMO_EDAD'].map({t: i for i, t in enumerate(TRAMOS)}).fillna(SIN_DATO_U8)
+
+    assert set(df['SEXO'].dropna()) <= set(SEXOS), f'Sexos no esperados: {set(df["SEXO"].dropna())}'
+    sexo = df['SEXO'].map(SEXOS).fillna(SEXOS['DESCONOCIDO'])
+
+    diagnosticos = (df.groupby('DIAGNOSTICO1')['DIAGNOSTICO1_DESC'].first().sort_index())
+    assert len(diagnosticos) < SIN_DATO_U8
+    diag = df['DIAGNOSTICO1'].map({c: i for i, c in enumerate(diagnosticos.index)})
+    assert diag.notna().all()
+
+    columnas = [(dia, np.uint16), (estadia, np.uint16), (comuna, np.uint16),
+                (region, np.uint8), (edad, np.uint8), (sexo, np.uint8), (diag, np.uint8)]
+    DESTINO.mkdir(parents=True, exist_ok=True)
+    with open(DESTINO / 'grd.bin', 'wb') as f:
+        for serie, tipo in columnas:
+            f.write(np.asarray(serie, dtype='<' + np.dtype(tipo).str[1:]).tobytes())
+
+    fecha_min = df['FECHA_ALTA'].min().date().isoformat()
+    fecha_max = df['FECHA_ALTA'].max().date().isoformat()
+    meta = {
+        'rows': n,
+        'baseDate': FECHA_BASE.date().isoformat(),
+        'minDate': fecha_min,
+        'maxDate': fecha_max,
+        'maxStay': int(estadia[estadia != SIN_DATO_U16].max()),
+        'ageLabels': TRAMOS,
+        'diagnoses': [{'id': c, 'label': f'{c} · {d}' if isinstance(d, str) else c}
+                      for c, d in diagnosticos.items()],
+        'source': 'GRD público 2019–2024, egresos con diagnóstico principal J00–J99',
+        'sourceFile': ORIGEN.name,
+        'sourceModified': datetime.fromtimestamp(ORIGEN.stat().st_mtime, timezone.utc).date().isoformat(),
+        'generatedAt': date.today().isoformat(),
+    }
+    (DESTINO / 'grd-meta.json').write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding='utf-8')
+
+    print(f'{n:,} filas · {fecha_min} a {fecha_max} · {len(diagnosticos)} diagnósticos')
+    print(f'Sin región: {int((region == 0).sum())} · edad desconocida: {int((edad == SIN_DATO_U8).sum())} '
+          f'· sexo desconocido: {int((sexo == 2).sum())}')
+    print(f'Escrito {DESTINO / "grd.bin"} ({(DESTINO / "grd.bin").stat().st_size / 1e6:.1f} MB)')
+
+
+if __name__ == '__main__':
+    main()
