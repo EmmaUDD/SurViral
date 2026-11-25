@@ -78,6 +78,8 @@ export interface Overview {
   territories: CategoryValue[];
   communes: CategoryValue[];
   regionalMonthly: { id: string; label: string; points: TimePoint[] }[];
+  /** Macrozonas (Ministerio de Ciencia + Metropolitana), con tasa mensual cuando hay población. */
+  macrozoneMonthly?: { id: string; label: string; points: TimePoint[] }[];
   demographics: { age: CategoryValue[]; sex: CategoryValue[] };
   meta: SourceMetadata;
 }

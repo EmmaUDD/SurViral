@@ -166,6 +166,15 @@ test('Archivos GRD generados: hospitalizaciones coinciden con el notebook de lim
   // Las comunas reconcilian con su región.
   const santiago = summarizeReal({ ...y2019f, region: '13' }, data, options);
   assert.equal(santiago.communes.reduce((t, c) => t + (c.rateEvents ?? 0), 0), santiago.meta.rate?.cohortEvents);
+  // Macrozonas: suman lo mismo que sus regiones y la tasa mensual de la RM suma su tasa anual.
+  const zones = y2019.macrozoneMonthly ?? [];
+  assert.deepEqual(zones.map(z => z.id), ['norte', 'centro', 'metropolitana', 'centro-sur', 'sur', 'austral']);
+  const zoneTotal = zones.reduce((t, z) => t + z.points.reduce((u, p) => u + (p.value ?? 0), 0), 0);
+  assert.equal(zoneTotal, y2019.territories.filter(t => t.id !== UNKNOWN_REGION_ID).reduce((t, r) => t + r.value, 0));
+  const rmRate = zones.find(z => z.id === 'metropolitana')!.points.reduce((t, p) => t + (p.rate ?? 0), 0);
+  assert.ok(Math.abs(rmRate - y2019.territories.find(t => t.id === '13')!.rate!) < 1e-6);
+  const onlyBiobio = summarizeReal({ ...y2019f, region: '08' }, data, options).macrozoneMonthly ?? [];
+  assert.deepEqual(onlyBiobio.map(z => z.id), ['centro-sur']);
   const logistic = logisticFromSeries(defaultFilters, 1, f => summarizeReal(f, data, options).monthly, 'real');
   assert.equal(logistic.mode, 'real');
 });

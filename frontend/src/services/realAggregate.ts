@@ -1,5 +1,6 @@
 import type { CategoryValue, FilterOptions, Filters, Measure, Overview, TimePoint } from '../types/dashboard.ts';
 import { ageBands } from '../utils/ages.ts';
+import { macrozones } from '../utils/macrozones.ts';
 import { regions, validateFiltersAgainst } from './catalog.ts';
 import { NO_STAY, SEX_IDS, UNKNOWN_U8, type GrdDataset, type GrdMeta } from './realData.ts';
 
@@ -72,7 +73,7 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
   const stays = new Uint32Array(meta.maxStay + 1), communeCounts = new Uint32Array(65536);
   let universe = 0, selected = 0, missingStay = 0;
   const regionCohort = new Uint32Array(17), ageCohort = new Uint32Array(ageBands.length + 1);
-  const communeCohort = new Uint32Array(65536), monthCohort = new Uint32Array(months);
+  const communeCohort = new Uint32Array(65536), monthCohort = new Uint32Array(months), regionMonthCohort = new Uint32Array(17 * months);
   let cohortSelected = 0;
   const { day, stay, commune, region, age, sex, diag, cohort } = data;
   for (let i = 0; i < meta.rows; i++) {
@@ -93,7 +94,7 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
     ageCounts[age[i] === UNKNOWN_U8 ? ageBands.length : age[i]]++;
     if (stay[i] === NO_STAY) missingStay++; else stays[stay[i]]++;
     if (cohort[i]) {
-      cohortSelected++; regionCohort[r]++; communeCohort[commune[i]]++; monthCohort[m]++;
+      cohortSelected++; regionCohort[r]++; communeCohort[commune[i]]++; monthCohort[m]++; regionMonthCohort[r * months + m]++;
       ageCohort[age[i] === UNKNOWN_U8 ? ageBands.length : age[i]]++;
     }
   }
@@ -105,6 +106,8 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
   let personYears = 0;
   const regionPY = new Float64Array(17), agePY = new Float64Array(ageBands.length + 1), communePY = new Float64Array(65536);
   const yearPopulation = new Map<number, number>();
+  // Beneficiarios por región y año (índice = región * YEARS + año - año base), para la tasa mensual por macrozona.
+  const YEARS = 16, regionYearPopulation = new Float64Array(17 * YEARS);
   if (rateAvailable) for (const [year, cut, sexId, ageId, persons] of population) {
     const fraction = fractions.get(year);
     if (!fraction) continue;
@@ -117,6 +120,7 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
     const py = persons * fraction;
     personYears += py; regionPY[r] += py; communePY[cut] += py; agePY[ageId === UNKNOWN_U8 ? ageBands.length : ageId] += py;
     yearPopulation.set(year, (yearPopulation.get(year) ?? 0) + persons);
+    if (year - baseYear >= 0 && year - baseYear < YEARS) regionYearPopulation[r * YEARS + year - baseYear] += persons;
   }
   const rateOf = (events: number, py: number) => rateAvailable && py > 0 ? PER * events / py : null;
   const percent = (value: number) => selected ? 100 * value / selected : null;
@@ -157,6 +161,19 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
       rate: measure(rateOf(cohortSelected, personYears), 'rate', cohortSelected, rateAvailable && personYears > 0 ? undefined : 'no_population'),
     },
     monthly,
+    // Macrozonas: suma de sus regiones; la tasa del mes usa los beneficiarios del año de esas regiones.
+    macrozoneMonthly: macrozones
+      .map(z => ({ zone: z, codes: z.regions.filter(id => shownRegions.some(r => r.id === id)).map(Number) }))
+      .filter(({ codes }) => codes.length > 0)
+      .map(({ zone, codes }) => ({
+        id: zone.id, label: zone.label,
+        points: monthly.map((p, m) => {
+          const year = Number(p.period.slice(0, 4));
+          const population = codes.reduce((sum, r) => sum + (year - baseYear >= 0 && year - baseYear < YEARS ? regionYearPopulation[r * YEARS + year - baseYear] : 0), 0);
+          const cohortEvents = codes.reduce((sum, r) => sum + regionMonthCohort[r * months + m], 0);
+          return { ...p, value: codes.reduce((sum, r) => sum + regionMonth[r * months + m], 0), ...(rateAvailable ? { rate: population > 0 ? PER * cohortEvents / population : null } : {}) };
+        }),
+      })),
     regionalMonthly: shownRegions.map(r => ({ ...r, points: monthly.map((p, m) => ({ ...p, value: regionMonth[Number(r.id) * months + m] })) })),
     diagnoses,
     ...(groups?.length ? { diagnosisCodes } : {}),
@@ -178,7 +195,7 @@ export function summarizeReal(filters: Filters, data: GrdDataset, options: Filte
         'Los archivos GRD del proyecto contienen solo egresos respiratorios; la proporción sobre el total de egresos no es calculable.',
         ...(meta.excludedTotal ? [`Se excluyen ${meta.excludedTotal.toLocaleString('es-CL')} egresos que no son hospitalizaciones (cirugía mayor ambulatoria y hospitalización diurna) en todo el período.`] : []),
         ...(selected && (selected - cohortSelected) / selected >= 0.05 ? [`${(100 * (selected - cohortSelected) / selected).toLocaleString('es-CL', { maximumFractionDigits: 1 })} % de las hospitalizaciones de esta selección son de hospitales que entraron al GRD en 2023–2024. La tasa usa solo la cohorte de hospitales presentes todos los años, por lo que no es comparable con otros territorios o años.`] : []),
-        ...(unknownRegion ? [`${unknownRegion} egresos sin comuna de residencia registrada se cuentan en los totales, pero no en el mapa ni en el mapa de calor.`] : []),
+        ...(unknownRegion ? [`${unknownRegion} egresos sin comuna de residencia registrada se cuentan en los totales, pero no en el mapa ni en los gráficos por región o macrozona.`] : []),
       ],
     },
   };
